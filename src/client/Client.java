@@ -15,6 +15,7 @@ public class Client {
 
     // 初始化FTP客户端
     public Socket init(String ip, int port){      // 客户端创建Socket通信，设置通信服务器的ip与port
+
         Socket socket = null;
         try{
             socket = new Socket(InetAddress.getByName(ip), port);
@@ -35,21 +36,63 @@ public class Client {
 
         // 与服务器交互的输入输出流
         try{
-            String instruction = "";
+            String instruction;
             BufferedReader keyboardIn = new BufferedReader(new InputStreamReader(System.in));
             InputStream is = clientSocket.getInputStream();
             OutputStream os = clientSocket.getOutputStream();
             sentToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
             System.out.println(receiveFromServer.readLine());
+            System.out.println(receiveFromServer.readLine());
 
             // 进入用户操作
+            ConnectServer connectServer = new ConnectServer(sentToServer, receiveFromServer);
+            ClientDataConnection dataConnection;
             while(true){
+                String text = receiveFromServer.readLine();
+                System.out.println(text);
                 instruction = keyboardIn.readLine();
-                if(instruction.equalsIgnoreCase("quit")){
+                sentToServer.println(instruction);
+                if(instruction.startsWith("quit") || instruction.startsWith("QUIT")){
+                    System.out.println("bye");
                     break;
+                }else if(instruction.startsWith("port") || instruction.startsWith("PORT")){
+                    // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行链接
+                    // 本机IP地址为：192.168.219.1
+                    try{
+                        dataConnection = connectServer.port(instruction.split(" ")[1]);
+                    }catch (ArrayIndexOutOfBoundsException e){
+                        System.out.println("wrong format of \"port\" command");
+                    }
+                }else if(instruction.startsWith("pasv") || instruction.startsWith("PASV")){
+                    // 修改为被动模式
+                }else if(instruction.startsWith("user") || instruction.startsWith("USER")){
+                    // 用户登录用户名
+                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
+                    // 用户登录密码
+                }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
+                    // 切换传输模式
+                }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
+                    // 切换传输模式
+                }else if(instruction.startsWith("stru") || instruction.startsWith("STRU")){
+                    // 设置文件传输结构
+                }else if(instruction.startsWith("retr") || instruction.startsWith("RETR")){
+                    // 下载文件：从服务器下载文件
+
+                }else if(instruction.startsWith("stor") || instruction.startsWith("STOR")){
+                    // 将文件存储到服务器
+
+                }else if(instruction.startsWith("noop") || instruction.startsWith("NOOP")){
+                    // 无操作
+                }else{
+                    System.out.println("wrong command");
                 }
             }
+            keyboardIn.close();
+            is.close();
+            os.close();
+            receiveFromServer.close();
+            sentToServer.close();
         }catch (IOException e){
             e.printStackTrace();
         }

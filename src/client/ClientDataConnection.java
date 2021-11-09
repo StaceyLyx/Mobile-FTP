@@ -1,12 +1,19 @@
 package client;
 
-public class ClientFileTransfer implements Runnable{
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
-    String action;
+public class ClientDataConnection{
 
+    int port;
+    ServerSocket socket;
+    Socket serverSocket;
 
-    @Override
-    public void run() {
-
+    ClientDataConnection(int port) throws IOException {
+        this.port = port;
+        socket = new ServerSocket(port);
+        serverSocket = socket.accept();    // 等待客户端来连接
     }
+
 }

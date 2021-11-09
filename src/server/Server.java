@@ -38,8 +38,8 @@ public class Server {
             try{
                 Socket client = serverSocket.accept();    // 建立与客户端的链接
                 Thread thread = new Thread(new ConnectClient(client, Server.ftpPath));
-                thread.start();
                 System.out.println("Client login！");
+                thread.start();
             }catch (IOException e){
                 e.printStackTrace();
             }
