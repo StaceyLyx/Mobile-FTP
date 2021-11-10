@@ -46,4 +46,8 @@ public class ServerDataConnection{
 //            e.printStackTrace();
 //        }
     }
+
+    public void close() throws IOException {
+        socket.close();
+    }
 }

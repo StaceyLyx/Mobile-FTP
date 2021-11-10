@@ -27,6 +27,7 @@ public class ConnectServer {
             String[] address = portStr.split(",");
             IP = address[0] + "." + address[1] + "." + address[2] + "." + address[3];
             port = 256 * Integer.parseInt(address[4]) + Integer.parseInt(address[5]);
+            sentToServer.println("port");    // port参数解析无误，开始给服务器指令
             sentToServer.println(IP);
             sentToServer.println(port);
             dataConnection = new ClientDataConnection(port);

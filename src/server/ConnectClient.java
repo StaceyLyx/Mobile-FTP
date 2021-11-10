@@ -34,11 +34,11 @@ public class ConnectClient implements Runnable{
             while(true){
                 String text = receiveFromClient.readLine();
                 System.out.println("command: " + text);
-                if(text.startsWith("quit") || text.startsWith("QUIT")){
+                if(text.equals("quit")){
                     System.out.println("Client logout!");
                     sentToClient.println("FTP logout successfully!");
                     break;
-                }else if(text.startsWith("port") || text.startsWith("PORT")){
+                }else if(text.equals("port")){
                     // 等待接收待连接的IP地址与端口号，服务器主动建立数据连接
                     String IP = receiveFromClient.readLine();
                     int port = Integer.parseInt(receiveFromClient.readLine());
@@ -50,6 +50,8 @@ public class ConnectClient implements Runnable{
                         continue;
                     }
                     System.out.println("Data connection is finished, client port is " + port);
+                }else if(text.startsWith("pasv") || text.startsWith("PASV")){
+
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
                     if(dataConnection != null){

@@ -3,6 +3,7 @@ package client;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Calendar;
 
 /**
  * FTP客户端
@@ -36,24 +37,25 @@ public class Client {
 
         // 与服务器交互的输入输出流
         try{
+            String synObject = "";   // 线程同步资源
             String instruction;
             BufferedReader keyboardIn = new BufferedReader(new InputStreamReader(System.in));
             InputStream is = clientSocket.getInputStream();
             OutputStream os = clientSocket.getOutputStream();
             sentToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
-            System.out.println(receiveFromServer.readLine());
-            System.out.println(receiveFromServer.readLine());
+            Receive receive = new Receive(is, os, synObject);   // FTP服务器的反馈监听线程
+            Thread receiveThread = new Thread(receive);   // 建立接收服务器数据的线程
+            receiveThread.setDaemon(true);   // 线程随主程序的终止而终止
+            receiveThread.start();
 
             // 进入用户操作
             ConnectServer connectServer = new ConnectServer(sentToServer, receiveFromServer);
             ClientDataConnection dataConnection;
             while(true){
-                String text = receiveFromServer.readLine();
-                System.out.println(text);
                 instruction = keyboardIn.readLine();
-                sentToServer.println(instruction);
                 if(instruction.startsWith("quit") || instruction.startsWith("QUIT")){
+                    sentToServer.println("quit");
                     System.out.println("bye");
                     break;
                 }else if(instruction.startsWith("port") || instruction.startsWith("PORT")){
