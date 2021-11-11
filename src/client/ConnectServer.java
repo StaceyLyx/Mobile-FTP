@@ -43,6 +43,7 @@ public class ConnectServer {
     public void uploadToServer(String instruction, ClientDataConnection dataConnection) throws IOException {
         StringBuilder pathname = new StringBuilder();
         String[] str = instruction.split(" ");
+        if(str.length == 1) throw new IndexOutOfBoundsException();
         for(int i = 1; i < str.length; ++i){
             pathname.append(str[i]).append(" ");
         }
@@ -52,6 +53,7 @@ public class ConnectServer {
     public void downloadFromServer(String instruction, ClientDataConnection dataConnection) throws IOException {
         StringBuilder pathname = new StringBuilder();
         String[] str = instruction.split(" ");
+        if(str.length == 1) throw new IndexOutOfBoundsException();
         for(int i = 1; i < str.length; ++i){
             pathname.append(str[i]).append(" ");
         }

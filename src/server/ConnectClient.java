@@ -56,27 +56,36 @@ public class ConnectClient implements Runnable{
                     // 下载文件到客户端
                     if(dataConnection != null){
                         try{
-                            System.out.println("ready to download file ......");
                             dataConnection.download(text);
                             System.out.println(receiveFromClient.readLine());
                             dataConnection.close();    // 关闭数据链接
+                        }catch (IndexOutOfBoundsException e){
+                            System.out.println("command needs parameter");
+                            continue;
                         }catch (IOException e){
-                            System.out.println("error occurs");
+                            System.out.println("errors occur");
+                            continue;
                         }
                     }else{
                         System.out.println("nonexistent connection");
-                        sendToClient.println("There is no data connection");
+                        continue;
                     }
                 }else if(text.startsWith("stor") || text.startsWith("STOR")){
                     // 上传文件
                     if(dataConnection != null){
-                        System.out.println("ready to upload file ......");
-                        dataConnection.upload(text);
-                        System.out.println(receiveFromClient.readLine());
-                        dataConnection.close();
+                        try{
+                            dataConnection.upload(text);
+                            System.out.println(receiveFromClient.readLine());
+                            dataConnection.close();
+                        }catch (IndexOutOfBoundsException e){
+                            System.out.println("command needs parameter");
+                            continue;
+                        }catch (IOException e){
+                            System.out.println("errors occur");
+                            continue;
+                        }
                     }else{
                         System.out.println("nonexistent connection");
-                        sendToClient.println("There is no data connection");
                     }
                 }else{
                     System.out.println("unknown command");

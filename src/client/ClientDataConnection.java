@@ -27,16 +27,16 @@ public class ClientDataConnection{
     }
 
     public void upload(String pathname) throws IOException {
-        FileInputStream lengthCheck = new FileInputStream(pathname);
+        BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
         int fileLength = 0;
         int content;
-        while((content = lengthCheck.read()) != -1){
+        while(lengthCheck.read() != -1){
             ++fileLength;
         }
         sendToServer.println(fileLength);      // 获取文件大小上传至服务器
         lengthCheck.close();
-        OutputStream os = serverSocket.getOutputStream();   // 获取服务器的输出流
-        FileInputStream is = new FileInputStream(pathname);
+        BufferedOutputStream os = new BufferedOutputStream(serverSocket.getOutputStream());   // 获取服务器的输出流
+        BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
         while ((content = is.read()) != -1){
             os.write(content);
         }

@@ -24,6 +24,11 @@ public class Server {
                 uploadDirectory.isDirectory();
                 uploadDirectory.mkdir();
             }
+            File downloadDirectory = new File(ftpPath + "/Download");
+            if(!downloadDirectory.exists()){
+                downloadDirectory.isDirectory();
+                downloadDirectory.mkdir();
+            }
         }catch (IOException e){
             System.out.println("port " + port + " has been used");
         }
