@@ -2,6 +2,7 @@ package client;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 
 /**
@@ -11,11 +12,11 @@ import java.io.PrintWriter;
 public class ConnectServer {
 
     BufferedReader receiveFromServer;    // 接受服务器的信息输入流
-    PrintWriter sentToServer;     // 客户端发送给服务器的信息输出流
+    PrintWriter sendToServer;     // 客户端发送给服务器的信息输出流
 
     ConnectServer(PrintWriter sentToServer, BufferedReader receiveFromServer){
         this.receiveFromServer = receiveFromServer;
-        this.sentToServer = sentToServer;
+        this.sendToServer = sentToServer;
     }
 
     public ClientDataConnection port(String portStr){
@@ -27,9 +28,9 @@ public class ConnectServer {
             String[] address = portStr.split(",");
             IP = address[0] + "." + address[1] + "." + address[2] + "." + address[3];
             port = 256 * Integer.parseInt(address[4]) + Integer.parseInt(address[5]);
-            sentToServer.println("port");    // port参数解析无误，开始给服务器指令
-            sentToServer.println(IP);
-            sentToServer.println(port);
+            sendToServer.println("port");    // port参数解析无误，开始给服务器指令
+            sendToServer.println(IP);
+            sendToServer.println(port);
             dataConnection = new ClientDataConnection(port);
         } catch (ArrayIndexOutOfBoundsException e){
             System.out.println("wrong format of \"port\" command");
@@ -37,5 +38,23 @@ public class ConnectServer {
             System.out.println("port has been used");
         }
         return dataConnection;
+    }
+
+    public void uploadToServer(String instruction, ClientDataConnection dataConnection) throws IOException {
+        StringBuilder pathname = new StringBuilder();
+        String[] str = instruction.split(" ");
+        for(int i = 1; i < str.length; ++i){
+            pathname.append(str[i]).append(" ");
+        }
+        dataConnection.upload(pathname.toString());
+    }
+
+    public void downloadFromServer(String instruction, ClientDataConnection dataConnection) throws IOException {
+        StringBuilder pathname = new StringBuilder();
+        String[] str = instruction.split(" ");
+        for(int i = 1; i < str.length; ++i){
+            pathname.append(str[i]).append(" ");
+        }
+        dataConnection.download(pathname.toString());
     }
 }

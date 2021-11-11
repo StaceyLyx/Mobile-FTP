@@ -19,7 +19,7 @@ public class Server {
         try{
             serverSocket = new ServerSocket(port);   // 服务器绑定于port端口上
             System.out.println("The FTP is started successfully!");
-            File uploadDirectory = new File(ftpPath + File.separator + "Upload");
+            File uploadDirectory = new File(ftpPath + "/Upload");
             if(!uploadDirectory.exists()){
                 uploadDirectory.isDirectory();
                 uploadDirectory.mkdir();

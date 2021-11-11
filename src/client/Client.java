@@ -12,7 +12,7 @@ import java.util.Calendar;
 public class Client {
 
     BufferedReader receiveFromServer;    // 接受服务器的信息输入流
-    PrintWriter sentToServer;     // 客户端发送给服务器的信息输出流
+    PrintWriter sendToServer;     // 客户端发送给服务器的信息输出流
 
     // 初始化FTP客户端
     public Socket init(String ip, int port){      // 客户端创建Socket通信，设置通信服务器的ip与port
@@ -20,10 +20,20 @@ public class Client {
         Socket socket = null;
         try{
             socket = new Socket(InetAddress.getByName(ip), port);
-            File downloadDirectory = new File("Download");
+            File ClientDirectory = new File("Client Files");
+            if(!ClientDirectory.exists()){
+                ClientDirectory.isDirectory();
+                ClientDirectory.mkdir();
+            }
+            File downloadDirectory = new File("./Client Files/Download");
             if(!downloadDirectory.exists()){
                 downloadDirectory.isDirectory();
                 downloadDirectory.mkdir();
+            }
+            File uploadDirectory = new File("./Client Files/Upload");
+            if(!uploadDirectory.exists()){
+                uploadDirectory.isDirectory();
+                uploadDirectory.mkdir();
             }
         }catch (IOException e){
             System.out.println("error in FTP client setting");
@@ -42,7 +52,7 @@ public class Client {
             BufferedReader keyboardIn = new BufferedReader(new InputStreamReader(System.in));
             InputStream is = clientSocket.getInputStream();
             OutputStream os = clientSocket.getOutputStream();
-            sentToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
+            sendToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
             Receive receive = new Receive(is, os, synObject);   // FTP服务器的反馈监听线程
             Thread receiveThread = new Thread(receive);   // 建立接收服务器数据的线程
@@ -50,17 +60,18 @@ public class Client {
             receiveThread.start();
 
             // 进入用户操作
-            ConnectServer connectServer = new ConnectServer(sentToServer, receiveFromServer);
-            ClientDataConnection dataConnection;
+            ConnectServer connectServer = new ConnectServer(sendToServer, receiveFromServer);
+            ClientDataConnection dataConnection = null;
             while(true){
                 instruction = keyboardIn.readLine();
                 if(instruction.startsWith("quit") || instruction.startsWith("QUIT")){
-                    sentToServer.println("quit");
+                    sendToServer.println("quit");
                     System.out.println("bye");
                     break;
                 }else if(instruction.startsWith("port") || instruction.startsWith("PORT")){
                     // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行链接
                     // 本机IP地址为：192.168.219.1
+                    // port 192,168,219,1,(端口号),(端口号)
                     try{
                         dataConnection = connectServer.port(instruction.split(" ")[1]);
                     }catch (ArrayIndexOutOfBoundsException e){
@@ -80,10 +91,37 @@ public class Client {
                     // 设置文件传输结构
                 }else if(instruction.startsWith("retr") || instruction.startsWith("RETR")){
                     // 下载文件：从服务器下载文件
-
+                    // retr ./Share/Download/(filename)
+                    sendToServer.println(instruction);
+                    if(dataConnection != null){
+                        try{
+                            connectServer.downloadFromServer(instruction, dataConnection);
+                            sendToServer.println("finish");
+                            dataConnection.close();   // 传输完毕，关闭数据链接
+                        }catch (IndexOutOfBoundsException e){
+                            System.out.println("parameter missed");
+                        }catch (IOException e){
+                            System.out.println("download failed, please try again");
+                        }
+                    }else{
+                        System.out.println("no data connection found");
+                    }
                 }else if(instruction.startsWith("stor") || instruction.startsWith("STOR")){
-                    // 将文件存储到服务器
-
+                    // 上传文件：将文件存储到服务器
+                    sendToServer.println(instruction);
+                    if(dataConnection != null){
+                        try{
+                            connectServer.uploadToServer(instruction, dataConnection);
+                            sendToServer.println("finish");
+                            dataConnection.close();   // 传输完毕，关闭数据链接
+                        }catch (IndexOutOfBoundsException e){
+                            System.out.println("parameter missed");
+                        }catch (IOException e){
+                            System.out.println("upload failed, please try again.");
+                        }
+                    }else{
+                        System.out.println("no data connection found");
+                    }
                 }else if(instruction.startsWith("noop") || instruction.startsWith("NOOP")){
                     // 无操作
                 }else{
@@ -94,7 +132,7 @@ public class Client {
             is.close();
             os.close();
             receiveFromServer.close();
-            sentToServer.close();
+            sendToServer.close();
         }catch (IOException e){
             e.printStackTrace();
         }
