@@ -7,7 +7,7 @@ import java.net.Socket;
 /**
  * FTP客户端传输文件类
  * ASCLL传输：txt、html等
- * BINARY传输（default）：exe、图片、视频、音频等
+ * BINARY传输（default）：exe、图片、视频、音频、压缩文件等
  */
 
 public class ClientDataConnection{
@@ -26,40 +26,51 @@ public class ClientDataConnection{
         this.receiveFromServer = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
     }
 
-    public void upload(String pathname) throws IOException {
-        BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
-        int fileLength = 0;
-        int content;
-        while(lengthCheck.read() != -1){
-            ++fileLength;
+    public boolean upload(String pathname){
+        try{
+            BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
+            sendToServer.println("ready");
+            int fileLength = 0;
+            int content;
+            while(lengthCheck.read() != -1){
+                ++fileLength;
+            }
+            sendToServer.println(fileLength);      // 获取文件大小上传至服务器
+            lengthCheck.close();
+            BufferedOutputStream os = new BufferedOutputStream(serverSocket.getOutputStream());   // 获取服务器的输出流
+            BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
+            while ((content = is.read()) != -1){
+                os.write(content);
+            }
+            is.close();
+            os.close();
+            return true;
+        }catch (IOException e){
+            sendToServer.println("stop");
+            return false;
         }
-        sendToServer.println(fileLength);      // 获取文件大小上传至服务器
-        lengthCheck.close();
-        BufferedOutputStream os = new BufferedOutputStream(serverSocket.getOutputStream());   // 获取服务器的输出流
-        BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
-        while ((content = is.read()) != -1){
-            os.write(content);
-        }
-        is.close();
     }
 
-    public void download(String pathname){
-        try{
+    public boolean download(String pathname) throws IOException{
+        String confirm = receiveFromServer.readLine();
+        if(confirm.equals("ready")){
             String[] str = pathname.split("/");    // 解析以/为分割线的文件路径
             if(str.length == 1){
                 str = pathname.split("\\\\");      // 解析以\\为分割线的文件路径
             }
             String filename = str[str.length - 1];        // 最后一个数据是文件名
             int fileLength = Integer.parseInt(receiveFromServer.readLine());
-            InputStream is = serverSocket.getInputStream();  // 获取输入流
+            BufferedInputStream is = new BufferedInputStream(serverSocket.getInputStream());   // 获取输入流
             FileOutputStream fos = new FileOutputStream("Client Files/Download/" + filename);
+            BufferedOutputStream os = new BufferedOutputStream(fos);
             for(int i = 0; i < fileLength; ++i){
-                fos.write(is.read());   // 将文件下载到客户端
+                os.write(is.read());   // 将文件下载到客户端
             }
             is.close();
             fos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            return true;
+        }else{
+            return false;
         }
     }
 

@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * FTP服务器链接客户端
@@ -44,6 +45,7 @@ public class ConnectClient implements Runnable{
                     int port = Integer.parseInt(receiveFromClient.readLine());
                     try{
                         dataConnection = new ServerDataConnection(IP, port);
+                        sendToClient.println("command \"" + text + "\" is done.");
                     }catch (IOException e){
                         sendToClient.println("Data connection failed");
                         System.out.println("Data connection failed");
@@ -56,42 +58,47 @@ public class ConnectClient implements Runnable{
                     // 下载文件到客户端
                     if(dataConnection != null){
                         try{
-                            dataConnection.download(text);
-                            System.out.println(receiveFromClient.readLine());
-                            dataConnection.close();    // 关闭数据链接
+                            if(dataConnection.download(text)){
+                                System.out.println(receiveFromClient.readLine());
+                                dataConnection.close();    // 关闭数据链接
+                                sendToClient.println("command \"" + text + "\" is done.");
+                            }else{
+                                System.out.println("errors occur");
+                            }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("command needs parameter");
-                            continue;
+                        }catch (SocketException e){
+                            System.out.println("nonexistent data connection");
                         }catch (IOException e){
                             System.out.println("errors occur");
-                            continue;
                         }
                     }else{
-                        System.out.println("nonexistent connection");
-                        continue;
+                        System.out.println("nonexistent data connection");
                     }
                 }else if(text.startsWith("stor") || text.startsWith("STOR")){
                     // 上传文件
                     if(dataConnection != null){
                         try{
-                            dataConnection.upload(text);
-                            System.out.println(receiveFromClient.readLine());
-                            dataConnection.close();
+                            if(dataConnection.upload(text)){
+                                System.out.println(receiveFromClient.readLine());
+                                dataConnection.close();    // 关闭数据链接
+                                sendToClient.println("command \"" + text + "\" is done.");
+                            }else{
+                                System.out.println("client error");
+                            }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("command needs parameter");
-                            continue;
+                        }catch (SocketException e){
+                            System.out.println("nonexistent data connection");
                         }catch (IOException e){
                             System.out.println("errors occur");
-                            continue;
                         }
                     }else{
-                        System.out.println("nonexistent connection");
+                        System.out.println("nonexistent data connection");
                     }
                 }else{
                     System.out.println("unknown command");
-                    continue;
                 }
-                sendToClient.println("command \"" + text + "\" is done.");
             }
             receiveFromClient.close();
             sendToClient.close();

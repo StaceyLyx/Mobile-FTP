@@ -40,23 +40,23 @@ public class ConnectServer {
         return dataConnection;
     }
 
-    public void uploadToServer(String instruction, ClientDataConnection dataConnection) throws IOException {
+    public boolean uploadToServer(String instruction, ClientDataConnection dataConnection){
         StringBuilder pathname = new StringBuilder();
         String[] str = instruction.split(" ");
         if(str.length == 1) throw new IndexOutOfBoundsException();
         for(int i = 1; i < str.length; ++i){
             pathname.append(str[i]).append(" ");
         }
-        dataConnection.upload(pathname.toString());
+        return dataConnection.upload(pathname.toString());
     }
 
-    public void downloadFromServer(String instruction, ClientDataConnection dataConnection) throws IOException {
+    public boolean downloadFromServer(String instruction, ClientDataConnection dataConnection) throws IOException {
         StringBuilder pathname = new StringBuilder();
         String[] str = instruction.split(" ");
         if(str.length == 1) throw new IndexOutOfBoundsException();
         for(int i = 1; i < str.length; ++i){
             pathname.append(str[i]).append(" ");
         }
-        dataConnection.download(pathname.toString());
+        return dataConnection.download(pathname.toString());
     }
 }

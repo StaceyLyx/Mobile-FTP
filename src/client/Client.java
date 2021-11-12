@@ -3,6 +3,7 @@ package client;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * FTP客户端
@@ -94,11 +95,17 @@ public class Client {
                     sendToServer.println(instruction);
                     if(dataConnection != null){
                         try{
-                            connectServer.downloadFromServer(instruction, dataConnection);
-                            sendToServer.println("finish");
-                            dataConnection.close();   // 传输完毕，关闭数据链接
+                            boolean confirm = connectServer.downloadFromServer(instruction, dataConnection);
+                            if(!confirm){
+                                System.out.println("download failed, please try again");
+                            }else{
+                                sendToServer.println("finish");
+                                dataConnection.close();   // 传输完毕，关闭数据链接
+                            }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("parameter missed");
+                        }catch (SocketException e){
+                            System.out.println("no data connection found");
                         }catch (IOException e){
                             System.out.println("download failed, please try again");
                         }
@@ -107,16 +114,23 @@ public class Client {
                     }
                 }else if(instruction.startsWith("stor") || instruction.startsWith("STOR")){
                     // 上传文件：将文件存储到服务器
+                    // stor ./Client Files/Upload/(filename)
                     sendToServer.println(instruction);
                     if(dataConnection != null){
                         try{
-                            connectServer.uploadToServer(instruction, dataConnection);
-                            sendToServer.println("finish");
-                            dataConnection.close();   // 传输完毕，关闭数据链接
+                            boolean confirm = connectServer.uploadToServer(instruction, dataConnection);
+                            if(!confirm){
+                                System.out.println("upload failed, please try again.");
+                            }else{
+                                sendToServer.println("finish");
+                                dataConnection.close();   // 传输完毕，关闭数据链接
+                            }
                         }catch (IndexOutOfBoundsException e){
+                            sendToServer.println("stop");
                             System.out.println("parameter missed");
-                        }catch (IOException e){
-                            System.out.println("upload failed, please try again.");
+                        }catch (SocketException e){
+                            sendToServer.println("stop");
+                            System.out.println("no data connection found");
                         }
                     }else{
                         System.out.println("no data connection found");
