@@ -1,5 +1,7 @@
 package client;
 
+import server.Authority;
+
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -45,6 +47,7 @@ public class Client {
     // 运行FTP客户端
     public void run(Socket clientSocket){
 
+        System.out.println("The FTP is started successfully! Please login first.");
         // 与服务器交互的输入输出流
         try{
             String synObject = "";   // 线程同步资源
@@ -54,12 +57,50 @@ public class Client {
             OutputStream os = clientSocket.getOutputStream();
             sendToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
+
+            // 用户需要先登录
+            String user = "", pass;
+            while(true){
+                instruction = keyboardIn.readLine();
+                if(instruction.startsWith("user") || instruction.startsWith("USER")){
+                    // 用户登录用户名
+                    user = instruction.split(" ")[1];
+                    if(user.equals("anonymous")){     // 匿名用户登录
+                        sendToServer.println("login");
+                        sendToServer.println(user);
+                        sendToServer.println("");
+                        String confirm = receiveFromServer.readLine();
+                        System.out.println("anonymous user login.");
+                        break;
+                    }
+                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
+                    // 用户登录密码
+                    String[] str = instruction.split(" ");
+                    if(str.length == 1){
+                        pass = "";
+                    }else{
+                        pass = str[1];
+                    }
+                    sendToServer.println("login");
+                    sendToServer.println(user);
+                    sendToServer.println(pass);
+                    String confirm = receiveFromServer.readLine();
+                    if(confirm.equals("legal")){
+                        System.out.println("FTP Login successfully!");
+                        break;
+                    }else{
+                        System.out.println("illegal user");
+                    }
+                }else{
+                    System.out.println("Please login first. You can use anonymous account if you don't have an account now");
+                }
+            }
+
+            // 登录成功，进入用户操作
             Receive receive = new Receive(is, os, synObject);   // FTP服务器的反馈监听线程
             Thread receiveThread = new Thread(receive);   // 建立接收服务器数据的线程
             receiveThread.setDaemon(true);   // 线程随主程序的终止而终止
             receiveThread.start();
-
-            // 进入用户操作
             ConnectServer connectServer = new ConnectServer(sendToServer, receiveFromServer);
             ClientDataConnection dataConnection = null;
             while(true){
@@ -79,10 +120,6 @@ public class Client {
                     }
                 }else if(instruction.startsWith("pasv") || instruction.startsWith("PASV")){
                     // 修改为被动模式
-                }else if(instruction.startsWith("user") || instruction.startsWith("USER")){
-                    // 用户登录用户名
-                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
-                    // 用户登录密码
                 }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
                     // 切换传输模式
                 }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
@@ -141,14 +178,10 @@ public class Client {
                     System.out.println("wrong command");
                 }
             }
-            keyboardIn.close();
             is.close();
             os.close();
-            receiveFromServer.close();
-            sendToServer.close();
         }catch (IOException e){
             e.printStackTrace();
         }
-
     }
 }

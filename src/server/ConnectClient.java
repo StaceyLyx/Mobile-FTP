@@ -29,8 +29,6 @@ public class ConnectClient implements Runnable{
             receiveFromClient = new BufferedReader(new InputStreamReader(is));
             sendToClient = new PrintWriter(os, true);
 
-            sendToClient.println("FTP login successfully!");
-            sendToClient.println("Please enter commands.");
             ServerDataConnection dataConnection = null;    // 用于等待客户端的数据链接
             while(true){
                 String text = receiveFromClient.readLine();
@@ -39,6 +37,16 @@ public class ConnectClient implements Runnable{
                     System.out.println("Client logout!");
                     sendToClient.println("FTP logout successfully!");
                     break;
+                }else if(text.equals("login")){
+                    String user = receiveFromClient.readLine();
+                    String pass = receiveFromClient.readLine();
+                    if(Server.serverAuthority.authorityLegal(user, pass)){
+                        sendToClient.println("legal");
+                        System.out.println("Client Login!");
+                    }else{
+                        sendToClient.println("illegal");
+                        System.out.println("illegal user");
+                    }
                 }else if(text.equals("port")){
                     // 等待接收待连接的IP地址与端口号，服务器主动建立数据连接
                     String IP = receiveFromClient.readLine();

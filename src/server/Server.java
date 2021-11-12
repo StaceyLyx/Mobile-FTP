@@ -11,6 +11,7 @@ import java.net.Socket;
 
 public class Server {
     static String ftpPath = "./Share";
+    static Authority serverAuthority = new Authority();
 
     // 初始化FTP服务器
     public ServerSocket init(){      // 服务器创建通信ServerSocket，创建Socket接收客户端信息
@@ -43,7 +44,6 @@ public class Server {
             try{
                 Socket client = serverSocket.accept();    // 建立与客户端的链接
                 Thread thread = new Thread(new ConnectClient(client, Server.ftpPath));
-                System.out.println("Client login！");
                 thread.start();
             }catch (IOException e){
                 e.printStackTrace();
