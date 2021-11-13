@@ -15,6 +15,7 @@ public class ServerDataConnection{
     Socket socket;
     PrintWriter sendToClient;
     BufferedReader receiveFromClient;
+    // TODO：acsll还是binary
 
     ServerDataConnection(String IP, int port) throws IOException {
         this.IP = IP;

@@ -17,6 +17,7 @@ public class ClientDataConnection{
     Socket serverSocket;       // 链接服务器的端口
     PrintWriter sendToServer;
     BufferedReader receiveFromServer;
+    // TODO: 用ascll还是binary
 
     ClientDataConnection(int port) throws IOException {
         this.port = port;

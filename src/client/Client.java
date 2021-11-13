@@ -1,7 +1,5 @@
 package client;
 
-import server.Authority;
-
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -112,7 +110,11 @@ public class Client {
                 }else if(instruction.startsWith("port") || instruction.startsWith("PORT")){
                     // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行链接
                     // 本机IP地址为：192.168.219.1
-                    // port 192,168,219,1,(端口号),(端口号)
+                    // port 192,168,219,1,(端口号1),(端口号2)
+                    // 端口号 = 端口号1 * 256 + 端口号2
+                    // port *,******
+                    // type ascll
+                    // stor filename
                     try{
                         dataConnection = connectServer.port(instruction.split(" ")[1]);
                     }catch (ArrayIndexOutOfBoundsException e){
@@ -121,11 +123,14 @@ public class Client {
                 }else if(instruction.startsWith("pasv") || instruction.startsWith("PASV")){
                     // 修改为被动模式
                 }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
-                    // 切换传输模式
+                    // 切换传输模式: ASCLL和BINARY
+                    // TODO:转换数据传输模式
                 }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
                     // 切换传输模式
+                    // TODO
                 }else if(instruction.startsWith("stru") || instruction.startsWith("STRU")){
                     // 设置文件传输结构
+                    // TODO
                 }else if(instruction.startsWith("retr") || instruction.startsWith("RETR")){
                     // 下载文件：从服务器下载文件
                     // retr ./Share/Download/(filename)

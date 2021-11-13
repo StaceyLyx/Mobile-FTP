@@ -60,6 +60,8 @@ public class ConnectClient implements Runnable{
                         continue;
                     }
                     System.out.println("Data connection is finished, client port is " + port);
+                }else if(text.startsWith("type") || text.startsWith("TYPE")){
+
                 }else if(text.startsWith("pasv") || text.startsWith("PASV")){
 
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
