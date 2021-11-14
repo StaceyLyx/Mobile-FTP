@@ -66,7 +66,7 @@ public class ConnectClient implements Runnable{
 
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
-                    if(dataConnection != null){
+                    if(dataConnection != null && dataConnection.on){
                         try{
                             if(dataConnection.download(text)){
                                 System.out.println(receiveFromClient.readLine());
@@ -77,8 +77,6 @@ public class ConnectClient implements Runnable{
                             }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("command needs parameter");
-                        }catch (SocketException e){
-                            System.out.println("nonexistent data connection");
                         }catch (IOException e){
                             System.out.println("errors occur");
                         }
@@ -87,7 +85,7 @@ public class ConnectClient implements Runnable{
                     }
                 }else if(text.startsWith("stor") || text.startsWith("STOR")){
                     // 上传文件
-                    if(dataConnection != null){
+                    if(dataConnection != null && dataConnection.on){
                         try{
                             if(dataConnection.upload(text)){
                                 System.out.println(receiveFromClient.readLine());
@@ -98,8 +96,6 @@ public class ConnectClient implements Runnable{
                             }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("command needs parameter");
-                        }catch (SocketException e){
-                            System.out.println("nonexistent data connection");
                         }catch (IOException e){
                             System.out.println("errors occur");
                         }

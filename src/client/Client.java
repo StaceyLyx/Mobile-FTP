@@ -111,10 +111,6 @@ public class Client {
                     // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行链接
                     // 本机IP地址为：192.168.219.1
                     // port 192,168,219,1,(端口号1),(端口号2)
-                    // 端口号 = 端口号1 * 256 + 端口号2
-                    // port *,******
-                    // type ascll
-                    // stor filename
                     try{
                         dataConnection = connectServer.port(instruction.split(" ")[1]);
                     }catch (ArrayIndexOutOfBoundsException e){
@@ -124,18 +120,15 @@ public class Client {
                     // 修改为被动模式
                 }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
                     // 切换传输模式: ASCLL和BINARY
-                    // TODO:转换数据传输模式
                 }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
                     // 切换传输模式
-                    // TODO
                 }else if(instruction.startsWith("stru") || instruction.startsWith("STRU")){
                     // 设置文件传输结构
-                    // TODO
                 }else if(instruction.startsWith("retr") || instruction.startsWith("RETR")){
                     // 下载文件：从服务器下载文件
                     // retr ./Share/Download/(filename)
                     sendToServer.println(instruction);
-                    if(dataConnection != null){
+                    if(dataConnection != null && dataConnection.on){
                         try{
                             boolean confirm = connectServer.downloadFromServer(instruction, dataConnection);
                             if(!confirm){
@@ -146,8 +139,6 @@ public class Client {
                             }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("parameter missed");
-                        }catch (SocketException e){
-                            System.out.println("no data connection found");
                         }catch (IOException e){
                             System.out.println("download failed, please try again");
                         }
@@ -158,7 +149,7 @@ public class Client {
                     // 上传文件：将文件存储到服务器
                     // stor ./Client Files/Upload/(filename)
                     sendToServer.println(instruction);
-                    if(dataConnection != null){
+                    if(dataConnection != null && dataConnection.on){
                         try{
                             boolean confirm = connectServer.uploadToServer(instruction, dataConnection);
                             if(!confirm){
@@ -170,9 +161,6 @@ public class Client {
                         }catch (IndexOutOfBoundsException e){
                             sendToServer.println("stop");
                             System.out.println("parameter missed");
-                        }catch (SocketException e){
-                            sendToServer.println("stop");
-                            System.out.println("no data connection found");
                         }
                     }else{
                         System.out.println("no data connection found");
