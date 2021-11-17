@@ -14,109 +14,160 @@ public class ServerDataConnection{
     String IP;
     int port;    // 主动模式下的默认数据传输端口
     Socket socket;
-    PrintWriter sendToClient;
-    BufferedReader receiveFromClient;
-    String type = "ascll";
+    String type = "";
+    BufferedInputStream is;       // 客户端输入流：binary
+    BufferedOutputStream os ;    // 客户端输出流：binary
+    PrintWriter printWriter;     // 客户端输出流：ascii
+    BufferedReader bufferedReader;    // 客户端输入流：ascii
 
     ServerDataConnection(String IP, int port) throws IOException {
         this.on = true;
         this.IP = IP;
         this.port = port;
         this.socket = new Socket(InetAddress.getByName(IP), port);
-        this.sendToClient = new PrintWriter(socket.getOutputStream(), true);
-        this.receiveFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.is = new BufferedInputStream(socket.getInputStream());
+        this.os = new BufferedOutputStream(socket.getOutputStream());
+        this.printWriter = new PrintWriter(socket.getOutputStream(), true);
+        this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    }
+
+    public void setType(String type){
+        this.type=type;
     }
 
     // 上传文件
-    public boolean upload(String text) throws IOException {
-        if(type.equalsIgnoreCase("ascll")){
-            return uploadAscll(text);
+    public boolean upload(BufferedReader receiveFromClient) throws IOException {
+        String info = receiveFromClient.readLine();
+        if(info.equals("ready")){
+            // 传输特定文件
+            String filename = receiveFromClient.readLine();         // 收取文件名
+            System.out.println("ready to upload \"" + filename + "\" ......");
+            if (type.equalsIgnoreCase("ascii")) {
+                uploadAscii(Server.ftpPath + "/Upload/" + filename);
+            }else{
+                // 默认二进制传输
+                uploadBinary(Server.ftpPath + "/Upload/" + filename, receiveFromClient);
+            }
+            return true;
+        }else if(info.equals("stop")){
+            // 异常停止
+            return false;
         }else{
-            // 默认二进制传输
-            return uploadBinary(text);
+            // 传输文件夹及内部文件
+            String path = Server.ftpPath + "/Upload/" + info + "/";
+            // 新建文件夹
+            File file = new File(Server.ftpPath + "/Upload/" + info);
+            if (!file.exists()) {
+                file.isDirectory();
+                file.mkdir();
+            }
+            while(!(info = receiveFromClient.readLine()).equals("over")){
+                if(info.equals("ready")){
+                    // 传输特定文件
+                    String filename = receiveFromClient.readLine();
+                    System.out.println("ready to upload \"" + filename + "\" ......");
+                    if (type.equalsIgnoreCase("ascii")) {
+                        uploadAscii(path + filename);
+                    }else{
+                        // 默认二进制传输
+                        uploadBinary(path + filename, receiveFromClient);
+                    }
+                }else if(info.equals("stop")){
+                    // 异常停止
+                    return false;
+                }
+            }
+            System.out.println("all uploading requests are done");
         }
+        return true;
     }
 
     // ASCLL传输
-    public boolean uploadAscll(String text) throws IOException {
-        String confirm = receiveFromClient.readLine();
-        if(confirm.equals("ready")){
-            String[] str = text.split("/");    // 解析以/为分割线的文件路径
-            if(str.length == 1){
-                str = text.split("\\\\");      // 解析以\\为分割线的文件路径
-            }
-            if(str.length == 1) throw new IndexOutOfBoundsException();
-            System.out.println("ready to upload file ......");
-            String filename = str[str.length - 1];        // 最后一个数据是文件名
-            File file = new File(Server.ftpPath + "/Upload/" + filename);
-            PrintWriter printWriter = new PrintWriter(file);
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            String temp;
-            while((temp = bufferedReader.readLine()) != null){
-                printWriter.println(temp);
-            }
-            printWriter.close();
-            bufferedReader.close();
-            return true;
-        }else{
-            return false;
+    public void uploadAscii(String filepath) throws IOException {
+        File file = new File(filepath);
+        PrintWriter printWriter = new PrintWriter(file);
+
+        String temp;
+        while((temp = bufferedReader.readLine()) != null){
+            printWriter.println(temp);
         }
+        System.out.println("one file has uploaded");
+        printWriter.close();
     }
 
     // 二进制传输
-    public boolean uploadBinary(String text) throws IOException{
-        String confirm = receiveFromClient.readLine();
-        if(confirm.equals("ready")){
-            String[] str = text.split("/");    // 解析以/为分割线的文件路径
-            if(str.length == 1){
-                str = text.split("\\\\");      // 解析以\\为分割线的文件路径
-            }
-            if(str.length == 1) throw new IndexOutOfBoundsException();
-            System.out.println("ready to upload file ......");
-            String filename = str[str.length - 1];        // 最后一个数据是文件名
-            int fileLength = Integer.parseInt(receiveFromClient.readLine());
-            BufferedInputStream is = new BufferedInputStream(socket.getInputStream());    // 获取输入流
-            FileOutputStream fos = new FileOutputStream(Server.ftpPath + "/Upload/" + filename);
-            BufferedOutputStream os = new BufferedOutputStream(fos);
-            for(int i = 0; i < fileLength; ++i){
-                os.write(is.read());   // 将文件上传到服务器
-            }
-            is.close();
-            fos.close();
-            return true;
-        }else{
-            return false;
+    public void uploadBinary(String filepath, BufferedReader receiveFromClient) throws IOException{
+        int fileLength = Integer.parseInt(receiveFromClient.readLine());
+        FileOutputStream fos = new FileOutputStream(filepath);
+        BufferedOutputStream os = new BufferedOutputStream(fos);
+        for(int i = 0; i < fileLength; ++i){
+            os.write(is.read());   // 将文件上传到服务器
         }
+        os.flush();
+        System.out.println("one file has uploaded");
+        os.close();
     }
 
     // 下载文件
-    public boolean download(String text) throws IOException {
-        if(type.equalsIgnoreCase("ascll")){
-            return downAscll(text);
+    public boolean download(String text, PrintWriter sendToClient) throws IOException {
+        StringBuilder pathname = new StringBuilder();    // 解析下载文件路径
+        String[] str = text.split(" ");
+        if(str.length == 1) throw new IndexOutOfBoundsException();
+        for(int i = 1; i < str.length; ++i){
+            pathname.append(str[i]);
+            if(i != str.length - 1){
+                pathname.append(" ");
+            }
+        }
+        File file = new File(pathname.toString());
+        if(!file.exists()){
+            sendToClient.println("stop");
+            return false;
+        }
+        if(file.isDirectory()){
+            // 传输文件夹
+            sendToClient.println(file.getName());   // 新建文件夹
+            File[] files = file.listFiles();
+            assert files != null;
+            // 传输file文件夹中的所有文件
+            for (File temp : files) {
+                if(type.equalsIgnoreCase("ascll")) {
+                    if(!downloadAscii(temp.getPath(), sendToClient)){
+                        return false;
+                    }
+                }else{
+                    // 默认二进制传输
+                    if(!downloadBinary(temp.getPath(), sendToClient)){
+                        return false;
+                    }
+                }
+            }
+            System.out.println("all downloading requests are done");
+            sendToClient.println("over");
+            return true;
         }else{
-            // 默认二进制传输
-            return downloadBinary(text);
+            // 传输特定文件
+            if(type.equalsIgnoreCase("ascll")){
+                return downloadAscii(pathname.toString(), sendToClient);
+            }else{
+                // 默认二进制传输
+                return downloadBinary(pathname.toString(), sendToClient);
+            }
         }
     }
 
-    public boolean downAscll(String text){
+    public boolean downloadAscii(String pathname, PrintWriter sendToClient){
         try{
-            StringBuilder pathname = new StringBuilder();    // 解析下载文件路径
-            String[] str = text.split(" ");
-            if(str.length == 1) throw new IndexOutOfBoundsException();
-            for(int i = 1; i < str.length; ++i){
-                pathname.append(str[i]).append(" ");
-            }
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(String.valueOf(pathname)));
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(pathname));
             sendToClient.println("ready");
-            System.out.println("ready to download file ......");
-            PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
+            File file = new File(pathname);
+            System.out.println("ready to download \"" + file.getName() + "\" ......");
             String temp;
             while((temp = bufferedReader.readLine()) != null){
                 printWriter.println(temp);
             }
             bufferedReader.close();
-            printWriter.close();
+            System.out.println("one file has downloaded");
             return true;
         }catch (IOException e){
             sendToClient.println("stop");
@@ -124,17 +175,13 @@ public class ServerDataConnection{
         }
     }
 
-    public boolean downloadBinary(String text){
+    public boolean downloadBinary(String pathname, PrintWriter sendToClient){
         try{
-            StringBuilder pathname = new StringBuilder();    // 解析下载文件路径
-            String[] str = text.split(" ");
-            if(str.length == 1) throw new IndexOutOfBoundsException();
-            for(int i = 1; i < str.length; ++i){
-                pathname.append(str[i]).append(" ");
-            }
-            BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname.toString()));
+            BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
             sendToClient.println("ready");
-            System.out.println("ready to download file ......");
+            File file = new File(pathname);
+            System.out.println("ready to download \"" + file.getName() + "\" ......");
+            sendToClient.println(file.getName());
             int fileLength = 0;
             int content;
             while(lengthCheck.read() != -1){
@@ -142,15 +189,16 @@ public class ServerDataConnection{
             }
             sendToClient.println(fileLength);      // 获取文件大小告知客户端
             lengthCheck.close();
-            BufferedOutputStream os = new BufferedOutputStream(socket.getOutputStream());    // 获取客户端的输出流
-            BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname.toString()));
+            BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
             while ((content = is.read()) != -1){
                 os.write(content);
             }
+            os.flush();
+            System.out.println("one file has downloaded");
             is.close();
-            os.close();
             return true;
         }catch (IOException e){
+            e.printStackTrace();
             sendToClient.println("stop");
             return false;
         }

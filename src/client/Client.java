@@ -48,7 +48,7 @@ public class Client {
         System.out.println("The FTP is started successfully! Please login first.");
         // 与服务器交互的输入输出流
         try{
-            String synObject = "";   // 线程同步资源
+            String synObject = "control";   // 线程同步资源
             String instruction;
             BufferedReader keyboardIn = new BufferedReader(new InputStreamReader(System.in));
             InputStream is = clientSocket.getInputStream();
@@ -57,42 +57,42 @@ public class Client {
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
 
             // 用户需要先登录
-            String user = "", pass;
-            while(true){
-                instruction = keyboardIn.readLine();
-                if(instruction.startsWith("user") || instruction.startsWith("USER")){
-                    // 用户登录用户名
-                    user = instruction.split(" ")[1];
-                    if(user.equals("anonymous")){     // 匿名用户登录
-                        sendToServer.println("login");
-                        sendToServer.println(user);
-                        sendToServer.println("");
-                        String confirm = receiveFromServer.readLine();
-                        System.out.println("anonymous user login.");
-                        break;
-                    }
-                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
-                    // 用户登录密码
-                    String[] str = instruction.split(" ");
-                    if(str.length == 1){
-                        pass = "";
-                    }else{
-                        pass = str[1];
-                    }
-                    sendToServer.println("login");
-                    sendToServer.println(user);
-                    sendToServer.println(pass);
-                    String confirm = receiveFromServer.readLine();
-                    if(confirm.equals("legal")){
-                        System.out.println("FTP Login successfully!");
-                        break;
-                    }else{
-                        System.out.println("illegal user");
-                    }
-                }else{
-                    System.out.println("Please login first. You can use anonymous account if you don't have an account now");
-                }
-            }
+//            String user = "", pass;
+//            while(true){
+//                instruction = keyboardIn.readLine();
+//                if(instruction.startsWith("user") || instruction.startsWith("USER")){
+//                    // 用户登录用户名
+//                    user = instruction.split(" ")[1];
+//                    if(user.equals("anonymous")){     // 匿名用户登录
+//                        sendToServer.println("login");
+//                        sendToServer.println(user);
+//                        sendToServer.println("");
+//                        String confirm = receiveFromServer.readLine();
+//                        System.out.println("anonymous user login.");
+//                        break;
+//                    }
+//                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
+//                    // 用户登录密码
+//                    String[] str = instruction.split(" ");
+//                    if(str.length == 1){
+//                        pass = "";
+//                    }else{
+//                        pass = str[1];
+//                    }
+//                    sendToServer.println("login");
+//                    sendToServer.println(user);
+//                    sendToServer.println(pass);
+//                    String confirm = receiveFromServer.readLine();
+//                    if(confirm.equals("legal")){
+//                        System.out.println("FTP Login successfully!");
+//                        break;
+//                    }else{
+//                        System.out.println("illegal user");
+//                    }
+//                }else{
+//                    System.out.println("Please login first. You can use anonymous account if you don't have an account now");
+//                }
+//            }
 
             // 登录成功，进入用户操作
             Receive receive = new Receive(is, os, synObject);   // FTP服务器的反馈监听线程
@@ -119,7 +119,21 @@ public class Client {
                 }else if(instruction.startsWith("pasv") || instruction.startsWith("PASV")){
                     // 修改为被动模式
                 }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
-                    // 切换传输模式: ASCLL和BINARY
+                    // 切换传输模式: ASCII和BINARY
+                    String type = instruction.split(" ")[1];
+                    if (type.equalsIgnoreCase("ascii") || type.equalsIgnoreCase("binary")){
+                        sendToServer.println(instruction);
+                        sendToServer.println(type);
+                    }else{
+                        System.out.println("Wrong type!");
+                    }
+                    if (dataConnection!=null) {
+                        try {
+                            connectServer.typeFromServer(instruction.split(" ")[1], dataConnection);
+                        } catch (ArrayIndexOutOfBoundsException e) {
+                            System.out.println("wrong format of \"type\" command");
+                        }
+                    }
                 }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
                     // 切换传输模式
                 }else if(instruction.startsWith("stru") || instruction.startsWith("STRU")){
@@ -130,11 +144,10 @@ public class Client {
                     sendToServer.println(instruction);
                     if(dataConnection != null && dataConnection.on){
                         try{
-                            boolean confirm = connectServer.downloadFromServer(instruction, dataConnection);
+                            boolean confirm = connectServer.downloadFromServer(dataConnection, synObject, receive);
                             if(!confirm){
                                 System.out.println("download failed, please try again");
                             }else{
-                                sendToServer.println("finish");
                                 dataConnection.close();   // 传输完毕，关闭数据链接
                             }
                         }catch (IndexOutOfBoundsException e){
@@ -155,7 +168,6 @@ public class Client {
                             if(!confirm){
                                 System.out.println("upload failed, please try again.");
                             }else{
-                                sendToServer.println("finish");
                                 dataConnection.close();   // 传输完毕，关闭数据链接
                             }
                         }catch (IndexOutOfBoundsException e){
@@ -167,6 +179,7 @@ public class Client {
                     }
                 }else if(instruction.startsWith("noop") || instruction.startsWith("NOOP")){
                     // 无操作
+                    sendToServer.println(instruction);
                 }else{
                     System.out.println("wrong command");
                 }

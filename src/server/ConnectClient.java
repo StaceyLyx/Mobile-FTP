@@ -61,18 +61,30 @@ public class ConnectClient implements Runnable{
                     }
                     System.out.println("Data connection is finished, client port is " + port);
                 }else if(text.startsWith("type") || text.startsWith("TYPE")){
-
+                    if(dataConnection!=null){
+                        String type = receiveFromClient.readLine();
+                        dataConnection.setType(type);
+                        sendToClient.println("current data transmission type: " + type);
+                        System.out.println("get type successfully!");
+                        System.out.println("current type: " + type);
+                    }else{
+                        System.out.println("Data connection failed");
+                    }
                 }else if(text.startsWith("pasv") || text.startsWith("PASV")){
 
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
                     if(dataConnection != null && dataConnection.on){
                         try{
-                            if(dataConnection.download(text)){
-                                System.out.println(receiveFromClient.readLine());
+                            sendToClient.println("accept");
+                            if(dataConnection.download(text, sendToClient)){
                                 dataConnection.close();    // 关闭数据链接
-                                sendToClient.println("command \"" + text + "\" is done.");
+                                String check = receiveFromClient.readLine();
+                                if(check.equals("continue")){
+                                    sendToClient.println("command \"" + text + "\" is done.");
+                                }
                             }else{
+                                receiveFromClient.readLine();
                                 System.out.println("errors occur");
                             }
                         }catch (IndexOutOfBoundsException e){
@@ -87,8 +99,7 @@ public class ConnectClient implements Runnable{
                     // 上传文件
                     if(dataConnection != null && dataConnection.on){
                         try{
-                            if(dataConnection.upload(text)){
-                                System.out.println(receiveFromClient.readLine());
+                            if(dataConnection.upload(receiveFromClient)){
                                 dataConnection.close();    // 关闭数据链接
                                 sendToClient.println("command \"" + text + "\" is done.");
                             }else{
@@ -97,11 +108,14 @@ public class ConnectClient implements Runnable{
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("command needs parameter");
                         }catch (IOException e){
+                            sendToClient.println("upload failed, please try again");
                             System.out.println("errors occur");
                         }
                     }else{
                         System.out.println("nonexistent data connection");
                     }
+                }else if(text.startsWith("noop") || text.startsWith("NOOP")){
+                    sendToClient.println("no operation");
                 }else{
                     System.out.println("unknown command");
                 }

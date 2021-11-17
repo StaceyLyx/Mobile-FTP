@@ -1,6 +1,7 @@
 package client;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -44,18 +45,27 @@ public class ConnectServer {
         String[] str = instruction.split(" ");
         if(str.length == 1) throw new IndexOutOfBoundsException();
         for(int i = 1; i < str.length; ++i){
-            pathname.append(str[i]).append(" ");
+            pathname.append(str[i]);
+            if(i != str.length - 1){
+                pathname.append(" ");
+            }
         }
-        return dataConnection.upload(pathname.toString());
+        return dataConnection.upload(pathname.toString(), sendToServer);
     }
 
-    public boolean downloadFromServer(String instruction, ClientDataConnection dataConnection) throws IOException {
-        StringBuilder pathname = new StringBuilder();
-        String[] str = instruction.split(" ");
-        if(str.length == 1) throw new IndexOutOfBoundsException();
-        for(int i = 1; i < str.length; ++i){
-            pathname.append(str[i]).append(" ");
+    public boolean downloadFromServer(ClientDataConnection dataConnection, String synObject,Receive receive) throws IOException {
+        boolean flag;
+        receive.stopNow(true);
+        synchronized (synObject){
+            flag = dataConnection.download(receiveFromServer);
+            synObject.notify();
+            receive.startNow(true);
         }
-        return dataConnection.download(pathname.toString());
+        sendToServer.println("continue");
+        return flag;
+    }
+
+    public void typeFromServer(String typeStr,ClientDataConnection dataConnection) throws FileNotFoundException {
+        dataConnection.setType(typeStr);
     }
 }

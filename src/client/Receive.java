@@ -10,7 +10,7 @@ public class Receive implements Runnable{
 
     String synObject;
     BufferedReader receiveFromServer;
-    PrintWriter sentToServer;
+    PrintWriter sendToServer;
     InputStream is;
     OutputStream os;
     boolean isStop = false;   // 控制线程的状态
@@ -35,18 +35,19 @@ public class Receive implements Runnable{
         try{
             String text;
             receiveFromServer = new BufferedReader(new InputStreamReader(is));
-            sentToServer = new PrintWriter(os, true);
+            sendToServer = new PrintWriter(os, true);
             synchronized (synObject){
                 while(true){
                     if(!isStop){
                         text = receiveFromServer.readLine();   // 接收服务器的控制信息
                         if(text == null || text.equals("")){
                             break;
+                        }else if(text.equals("accept")){
+                            isStop = true;
                         }else{
                             System.out.println(text);   // 显示服务器的反馈信息
                         }
                     }else if(isStop){
-                        System.out.println("Data Channel started");
                         synObject.wait();
                     }
                 }
