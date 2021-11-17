@@ -72,6 +72,12 @@ public class ConnectClient implements Runnable{
                     }
                 }else if(text.startsWith("pasv") || text.startsWith("PASV")){
 
+                }else if(text.startsWith("mode") || text.startsWith("MODE")){
+                    String mode = receiveFromClient.readLine();
+                    sendToClient.println("current file transfer mode: " + mode);
+                }else if(text.startsWith("stru") || text.startsWith("STRU")){
+                    String stru = receiveFromClient.readLine();
+                    sendToClient.println("current file transfer stru: " + stru);
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
                     if(dataConnection != null && dataConnection.on){

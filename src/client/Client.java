@@ -136,8 +136,22 @@ public class Client {
                     }
                 }else if(instruction.startsWith("mode") || instruction.startsWith("MODE")){
                     // 切换传输模式
+                    try{
+                        String mode = instruction.split(" ")[1];
+                        sendToServer.println(instruction);
+                        sendToServer.println(mode);
+                    }catch (IndexOutOfBoundsException e){
+                        System.out.println("wrong format of \"mode\" command");
+                    }
                 }else if(instruction.startsWith("stru") || instruction.startsWith("STRU")){
                     // 设置文件传输结构
+                    try{
+                        String stru = instruction.split(" ")[1];
+                        sendToServer.println(instruction);
+                        sendToServer.println(stru);
+                    }catch (IndexOutOfBoundsException e){
+                        System.out.println("wrong format of \"stru\" command");
+                    }
                 }else if(instruction.startsWith("retr") || instruction.startsWith("RETR")){
                     // 下载文件：从服务器下载文件
                     // retr ./Share/Download/(filename)
