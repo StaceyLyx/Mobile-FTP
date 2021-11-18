@@ -3,7 +3,8 @@ package client;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketException;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * FTP客户端
@@ -45,7 +46,7 @@ public class Client {
     // 运行FTP客户端
     public void run(Socket clientSocket){
 
-        System.out.println("The FTP is started successfully! Please login first.");
+        System.out.println("The FTP is started successfully!");
         // 与服务器交互的输入输出流
         try{
             String synObject = "control";   // 线程同步资源
@@ -56,43 +57,45 @@ public class Client {
             sendToServer = new PrintWriter(os, true);     // 发送给服务器的信息流
             receiveFromServer = new BufferedReader(new InputStreamReader(is));    // 接收服务器的信息流
 
-            // 用户需要先登录
-//            String user = "", pass;
-//            while(true){
-//                instruction = keyboardIn.readLine();
-//                if(instruction.startsWith("user") || instruction.startsWith("USER")){
-//                    // 用户登录用户名
-//                    user = instruction.split(" ")[1];
-//                    if(user.equals("anonymous")){     // 匿名用户登录
-//                        sendToServer.println("login");
-//                        sendToServer.println(user);
-//                        sendToServer.println("");
-//                        String confirm = receiveFromServer.readLine();
-//                        System.out.println("anonymous user login.");
-//                        break;
-//                    }
-//                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
-//                    // 用户登录密码
-//                    String[] str = instruction.split(" ");
-//                    if(str.length == 1){
-//                        pass = "";
-//                    }else{
-//                        pass = str[1];
-//                    }
-//                    sendToServer.println("login");
-//                    sendToServer.println(user);
-//                    sendToServer.println(pass);
-//                    String confirm = receiveFromServer.readLine();
-//                    if(confirm.equals("legal")){
-//                        System.out.println("FTP Login successfully!");
-//                        break;
-//                    }else{
-//                        System.out.println("illegal user");
-//                    }
-//                }else{
-//                    System.out.println("Please login first. You can use anonymous account if you don't have an account now");
-//                }
-//            }
+//          用户需要先登录
+            System.out.println("You can enter \"user\" and \"pass\" command for your login. " +
+                               "If you aren't have an account, you can login anonymously.");
+            String user = "", pass;
+            while(true){
+                instruction = keyboardIn.readLine();
+                if(instruction.startsWith("user") || instruction.startsWith("USER")){
+                    // 用户登录用户名
+                    user = instruction.split(" ")[1];
+                    if(user.equals("anonymous")){     // 匿名用户登录
+                        sendToServer.println("login");
+                        sendToServer.println(user);
+                        sendToServer.println("");
+                        receiveFromServer.readLine();
+                        System.out.println("anonymous user login.");
+                        break;
+                    }
+                }else if(instruction.startsWith("pass") || instruction.startsWith("PASS")){
+                    // 用户登录密码
+                    String[] str = instruction.split(" ");
+                    if(str.length == 1){
+                        pass = "";
+                    }else{
+                        pass = str[1];
+                    }
+                    sendToServer.println("login");
+                    sendToServer.println(user);
+                    sendToServer.println(pass);
+                    String confirm = receiveFromServer.readLine();
+                    if(confirm.equals("legal")){
+                        System.out.println("FTP Login successfully!");
+                        break;
+                    }else{
+                        System.out.println("illegal user");
+                    }
+                }else{
+                    System.out.println("Please login first. You can use anonymous account if you don't have an account now");
+                }
+            }
 
             // 登录成功，进入用户操作
             Receive receive = new Receive(is, os, synObject);   // FTP服务器的反馈监听线程
@@ -101,6 +104,7 @@ public class Client {
             receiveThread.start();
             ConnectServer connectServer = new ConnectServer(sendToServer, receiveFromServer);
             ClientDataConnection dataConnection = null;
+//            ClientDataConnection dataConnectionB = null;   // 辅助数据传输
             while(true){
                 instruction = keyboardIn.readLine();
                 if(instruction.startsWith("quit") || instruction.startsWith("QUIT")){
@@ -108,16 +112,24 @@ public class Client {
                     System.out.println("bye");
                     break;
                 }else if(instruction.startsWith("port") || instruction.startsWith("PORT")){
-                    // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行链接
+                    // 主动模式：告知服务器数据传输的IP地址与端口号，客户端打开该端口等待服务器进行连接
                     // 本机IP地址为：192.168.219.1
                     // port 192,168,219,1,(端口号1),(端口号2)
                     try{
-                        dataConnection = connectServer.port(instruction.split(" ")[1]);
+                        dataConnection = connectServer.port(instruction.split(" ")[1], false);
+//                        dataConnectionB = connectServer.port(instruction.split(" ")[1], true);
                     }catch (ArrayIndexOutOfBoundsException e){
                         System.out.println("wrong format of \"port\" command");
                     }
                 }else if(instruction.startsWith("pasv") || instruction.startsWith("PASV")){
-                    // 修改为被动模式
+                    // 被动模式：服务器任意开一个端口告知客户端，客户端进行连接
+                    sendToServer.println(instruction);
+                    try{
+                        dataConnection = connectServer.pasv(synObject, receive);
+                    }catch (IOException e){
+                        e.printStackTrace();
+                        System.out.println("wrong switch to passive mode");
+                    }
                 }else if(instruction.startsWith("type") || instruction.startsWith("TYPE")){
                     // 切换传输模式: ASCII和BINARY
                     String type = instruction.split(" ")[1];
@@ -158,11 +170,14 @@ public class Client {
                     sendToServer.println(instruction);
                     if(dataConnection != null && dataConnection.on){
                         try{
+                            Date time1 = new Date();
                             boolean confirm = connectServer.downloadFromServer(dataConnection, synObject, receive);
                             if(!confirm){
                                 System.out.println("download failed, please try again");
                             }else{
+                                Date time2 = new Date();
                                 dataConnection.close();   // 传输完毕，关闭数据链接
+                                System.out.println("Transmission time: " + (time2.getTime() - time1.getTime()) + " ms");
                             }
                         }catch (IndexOutOfBoundsException e){
                             System.out.println("parameter missed");
@@ -178,11 +193,14 @@ public class Client {
                     sendToServer.println(instruction);
                     if(dataConnection != null && dataConnection.on){
                         try{
+                            Date time1 = new Date();
                             boolean confirm = connectServer.uploadToServer(instruction, dataConnection);
                             if(!confirm){
                                 System.out.println("upload failed, please try again.");
                             }else{
+                                Date time2 = new Date();
                                 dataConnection.close();   // 传输完毕，关闭数据链接
+                                System.out.println("Transmission time: " + (time2.getTime() - time1.getTime()) + " ms");
                             }
                         }catch (IndexOutOfBoundsException e){
                             sendToServer.println("stop");

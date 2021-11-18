@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
@@ -12,7 +13,7 @@ public class ServerDataConnection{
 
     boolean on;
     String IP;
-    int port;    // 主动模式下的默认数据传输端口
+    int port;       // 数据传输端口
     Socket socket;
     String type = "";
     BufferedInputStream is;       // 客户端输入流：binary
@@ -20,6 +21,7 @@ public class ServerDataConnection{
     PrintWriter printWriter;     // 客户端输出流：ascii
     BufferedReader bufferedReader;    // 客户端输入流：ascii
 
+    // 主动模式
     ServerDataConnection(String IP, int port) throws IOException {
         this.on = true;
         this.IP = IP;
@@ -31,8 +33,20 @@ public class ServerDataConnection{
         this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
     }
 
+    // 被动模式
+    ServerDataConnection(int port) throws IOException {
+        this.on = true;
+        this.port = port;
+        ServerSocket serverSocket = new ServerSocket(this.port);
+        this.socket = serverSocket.accept();
+        this.is = new BufferedInputStream(socket.getInputStream());
+        this.os = new BufferedOutputStream(socket.getOutputStream());
+        this.printWriter = new PrintWriter(socket.getOutputStream(), true);
+        this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    }
+
     public void setType(String type){
-        this.type=type;
+        this.type = type;
     }
 
     // 上传文件
@@ -85,27 +99,27 @@ public class ServerDataConnection{
     // ASCLL传输
     public void uploadAscii(String filepath) throws IOException {
         File file = new File(filepath);
-        PrintWriter printWriter = new PrintWriter(file);
+        PrintWriter filePrintWriter = new PrintWriter(file);
 
         String temp;
         while((temp = bufferedReader.readLine()) != null){
-            printWriter.println(temp);
+            filePrintWriter.println(temp);
         }
         System.out.println("one file has uploaded");
-        printWriter.close();
+        filePrintWriter.close();
     }
 
     // 二进制传输
     public void uploadBinary(String filepath, BufferedReader receiveFromClient) throws IOException{
         int fileLength = Integer.parseInt(receiveFromClient.readLine());
         FileOutputStream fos = new FileOutputStream(filepath);
-        BufferedOutputStream os = new BufferedOutputStream(fos);
+        BufferedOutputStream fileOs = new BufferedOutputStream(fos);
         for(int i = 0; i < fileLength; ++i){
-            os.write(is.read());   // 将文件上传到服务器
+            fileOs.write(is.read());   // 将文件上传到服务器
         }
-        os.flush();
+        fileOs.flush();
         System.out.println("one file has uploaded");
-        os.close();
+        fileOs.close();
     }
 
     // 下载文件
@@ -158,15 +172,15 @@ public class ServerDataConnection{
 
     public boolean downloadAscii(String pathname, PrintWriter sendToClient){
         try{
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(pathname));
+            BufferedReader fileBufferedReader = new BufferedReader(new FileReader(pathname));
             sendToClient.println("ready");
             File file = new File(pathname);
             System.out.println("ready to download \"" + file.getName() + "\" ......");
             String temp;
-            while((temp = bufferedReader.readLine()) != null){
+            while((temp = fileBufferedReader.readLine()) != null){
                 printWriter.println(temp);
             }
-            bufferedReader.close();
+            fileBufferedReader.close();
             System.out.println("one file has downloaded");
             return true;
         }catch (IOException e){
@@ -189,13 +203,13 @@ public class ServerDataConnection{
             }
             sendToClient.println(fileLength);      // 获取文件大小告知客户端
             lengthCheck.close();
-            BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
-            while ((content = is.read()) != -1){
+            BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
+            while ((content = fileIs.read()) != -1){
                 os.write(content);
             }
             os.flush();
             System.out.println("one file has downloaded");
-            is.close();
+            fileIs.close();
             return true;
         }catch (IOException e){
             e.printStackTrace();
@@ -205,7 +219,9 @@ public class ServerDataConnection{
     }
 
     public void close() throws IOException {
-        socket.close();
         this.on = false;
+        if(this.socket != null){
+            this.socket.close();
+        }
     }
 }

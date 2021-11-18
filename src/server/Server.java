@@ -38,7 +38,7 @@ public class Server {
 
     // 运行FTP服务器
     public void run(ServerSocket serverSocket) throws Exception {
-        boolean judge = true;      //TODO: 为什么需要judge与套接字关闭的问题
+        boolean judge = true;
         while(judge){
             // 接收多个客户端链接
             try{

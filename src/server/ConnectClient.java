@@ -1,8 +1,9 @@
 package server;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketException;
+import java.net.UnknownHostException;
 
 /**
  * FTP服务器链接客户端
@@ -30,6 +31,7 @@ public class ConnectClient implements Runnable{
             sendToClient = new PrintWriter(os, true);
 
             ServerDataConnection dataConnection = null;    // 用于等待客户端的数据链接
+//            ServerDataConnection dataConnectionB = null;   // 辅助数据传输
             while(true){
                 String text = receiveFromClient.readLine();
                 System.out.println("command: " + text);
@@ -53,13 +55,42 @@ public class ConnectClient implements Runnable{
                     int port = Integer.parseInt(receiveFromClient.readLine());
                     try{
                         dataConnection = new ServerDataConnection(IP, port);
+//                        dataConnectionB = new ServerDataConnection(IP, port + 1);
                         sendToClient.println("command \"" + text + "\" is done.");
                     }catch (IOException e){
                         sendToClient.println("Data connection failed");
                         System.out.println("Data connection failed");
                         continue;
                     }
+                    sendToClient.println("System will open another different port automatically to accelerate data transfer.");
                     System.out.println("Data connection is finished, client port is " + port);
+                }else if(text.startsWith("pasv") || text.startsWith("PASV")){
+                    // 服务器开启一个端口供客户端连接
+                    // 服务器IP地址
+                    sendToClient.println("accept");
+                    String localhostAddress = "";
+                    try{
+                        localhostAddress = String.valueOf(InetAddress.getLocalHost());
+                    }catch (UnknownHostException e){
+                        e.printStackTrace();
+                    }
+                    sendToClient.println(localhostAddress.split("/")[1]);
+                    // 服务器端口
+                    int port = (int)(3000 + Math.random() * (50000 - 3000 + 1));
+                    sendToClient.println(port);
+                    try{
+                        String check = receiveFromClient.readLine();
+                        if(check.equals("continue")){
+                            dataConnection = new ServerDataConnection(port);
+                        }
+                        sendToClient.println("command \"" + text + "\" is done.");
+                    }catch (IOException e){
+                        sendToClient.println("Data connection failed");
+                        System.out.println("Data connection failed");
+                        continue;
+                    }
+                    sendToClient.println("System will open another different port automatically to accelerate data transfer.");
+                    System.out.println("Data connection is finished, server port is " + port);
                 }else if(text.startsWith("type") || text.startsWith("TYPE")){
                     if(dataConnection!=null){
                         String type = receiveFromClient.readLine();
@@ -70,8 +101,6 @@ public class ConnectClient implements Runnable{
                     }else{
                         System.out.println("Data connection failed");
                     }
-                }else if(text.startsWith("pasv") || text.startsWith("PASV")){
-
                 }else if(text.startsWith("mode") || text.startsWith("MODE")){
                     String mode = receiveFromClient.readLine();
                     sendToClient.println("current file transfer mode: " + mode);

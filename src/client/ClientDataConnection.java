@@ -1,8 +1,10 @@
 package client;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 /**
  * FTP客户端传输文件类
@@ -22,11 +24,23 @@ public class ClientDataConnection{
     BufferedReader bufferedReader;   // 服务器输入流:ascii
     PrintWriter printWriter;  // 服务器输出流:ascii
 
+    // 主动模式
     ClientDataConnection(int port) throws IOException {
         this.port = port;
         this.on = true;
         this.socket = new ServerSocket(port);
         this.serverSocket = socket.accept();    // 等待客户端来连接
+        this.is = new BufferedInputStream(serverSocket.getInputStream());
+        this.os = new BufferedOutputStream(serverSocket.getOutputStream());
+        this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
+        this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+    }
+
+    // 被动模式
+    ClientDataConnection(String ip, int port) throws IOException {
+        this.port = port;
+        this.on = true;
+        this.serverSocket = new Socket(InetAddress.getByName(ip), port);
         this.is = new BufferedInputStream(serverSocket.getInputStream());
         this.os = new BufferedOutputStream(serverSocket.getOutputStream());
         this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
@@ -73,18 +87,18 @@ public class ClientDataConnection{
         return true;
     }
 
-    // ASCLL传输
+    // ASCII传输
     public boolean uploadAscii(String pathname, PrintWriter sendToServer){
         try{
             File file = new File(pathname);
             sendToServer.println("ready");
             sendToServer.println(file.getName());
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
+            BufferedReader fileBufferedReader = new BufferedReader(new FileReader(file));
             String temp;
-            while((temp = bufferedReader.readLine()) != null){
+            while((temp = fileBufferedReader.readLine()) != null){
                 printWriter.println(temp);
             }
-            bufferedReader.close();
+            fileBufferedReader.close();
             return true;
         }catch (IOException e){
             sendToServer.println("stop");
@@ -104,13 +118,13 @@ public class ClientDataConnection{
             }
             sendToServer.println(fileLength);      // 获取文件大小上传至服务器
             lengthCheck.close();
-            BufferedInputStream is = new BufferedInputStream(new FileInputStream(pathname));
+            BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
             int content;
-            while ((content = is.read()) != -1){
+            while ((content = fileIs.read()) != -1){
                 os.write(content);
             }
             os.flush();
-            is.close();
+            fileIs.close();
             return true;
         }catch (IOException e){
             sendToServer.println("stop");
@@ -164,35 +178,39 @@ public class ClientDataConnection{
         return judge;
     }
 
-    // ASCLL传输
+    // ASCII传输
     public void downloadAscii(String filepath) throws IOException {
         File file = new File(filepath);
-        PrintWriter printWriter = new PrintWriter(file);
+        PrintWriter filePrintWriter = new PrintWriter(file);
         String temp;
         while((temp = bufferedReader.readLine()) != null){
-            printWriter.println(temp);
+            filePrintWriter.println(temp);
         }
-        printWriter.flush();
-        printWriter.close();
+        filePrintWriter.flush();
+        filePrintWriter.close();
     }
 
     // 二进制传输
     public void downloadBinary(String filepath, BufferedReader receiveFromServer) throws IOException{
         int fileLength = Integer.parseInt(receiveFromServer.readLine());
         FileOutputStream fos = new FileOutputStream(filepath);
-        BufferedOutputStream os = new BufferedOutputStream(fos);
+        BufferedOutputStream fileOs = new BufferedOutputStream(fos);
         for(int i = 0; i < fileLength; ++i){
-            os.write(is.read());   // 将文件下载到客户端
+            fileOs.write(is.read());   // 将文件下载到客户端
         }
-        os.flush();
+        fileOs.flush();
         fos.close();
     }
 
     public void close() throws IOException{
         this.type = "";
         this.on = false;
-        socket.close();
-        serverSocket.close();
+        if(this.socket != null){
+            this.socket.close();
+        }
+        if(this.serverSocket != null) {
+            this.serverSocket.close();
+        }
     }
 
 }

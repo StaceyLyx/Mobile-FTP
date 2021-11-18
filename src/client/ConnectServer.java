@@ -19,7 +19,7 @@ public class ConnectServer {
         this.sendToServer = sentToServer;
     }
 
-    public ClientDataConnection port(String portStr){
+    public ClientDataConnection port(String portStr, boolean B){
         // 打开客户端该端口
         ClientDataConnection dataConnection = null;
         String IP;
@@ -28,6 +28,9 @@ public class ConnectServer {
             String[] address = portStr.split(",");
             IP = address[0] + "." + address[1] + "." + address[2] + "." + address[3];
             port = 256 * Integer.parseInt(address[4]) + Integer.parseInt(address[5]);
+            if(B){
+                port += 1;
+            }
             sendToServer.println("port");    // port参数解析无误，开始给服务器指令
             sendToServer.println(IP);
             sendToServer.println(port);
@@ -38,6 +41,24 @@ public class ConnectServer {
             System.out.println("port has been used");
         }
         return dataConnection;
+    }
+
+    public ClientDataConnection pasv(String synObject, Receive receive) throws IOException {
+        receive.stopNow(true);
+        String ip;
+        String portStr;
+        synchronized (synObject){
+            ip = receiveFromServer.readLine();
+            portStr = receiveFromServer.readLine();
+            synObject.notify();
+            receive.startNow(true);
+        }
+        sendToServer.println("continue");
+        int port = 0;
+        for(int i = 0; i < portStr.length(); ++i){
+            port = port * 10 + (portStr.charAt(i) - '0');
+        }
+        return new ClientDataConnection(ip, port);
     }
 
     public boolean uploadToServer(String instruction, ClientDataConnection dataConnection){
