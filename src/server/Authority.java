@@ -3,6 +3,10 @@ package server;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * FTP登录权限相关
+ */
+
 public class Authority {
 
     String user;

@@ -1,9 +1,8 @@
 package client;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 /**
  * FTP客户端链接服务器，处理命令信息
@@ -19,7 +18,7 @@ public class ConnectServer {
         this.sendToServer = sentToServer;
     }
 
-    public ClientDataConnection port(String portStr, boolean B){
+    public ClientDataConnection port(String portStr){
         // 打开客户端该端口
         ClientDataConnection dataConnection = null;
         String IP;
@@ -28,9 +27,6 @@ public class ConnectServer {
             String[] address = portStr.split(",");
             IP = address[0] + "." + address[1] + "." + address[2] + "." + address[3];
             port = 256 * Integer.parseInt(address[4]) + Integer.parseInt(address[5]);
-            if(B){
-                port += 1;
-            }
             sendToServer.println("port");    // port参数解析无误，开始给服务器指令
             sendToServer.println(IP);
             sendToServer.println(port);
@@ -61,7 +57,7 @@ public class ConnectServer {
         return new ClientDataConnection(ip, port);
     }
 
-    public boolean uploadToServer(String instruction, ClientDataConnection dataConnection){
+    public boolean uploadToServer(String instruction, ClientDataConnection dataConnection, ClientDataConnection dataConnectionB) throws ExecutionException, InterruptedException {
         StringBuilder pathname = new StringBuilder();
         String[] str = instruction.split(" ");
         if(str.length == 1) throw new IndexOutOfBoundsException();
@@ -71,7 +67,42 @@ public class ConnectServer {
                 pathname.append(" ");
             }
         }
-        return dataConnection.upload(pathname.toString(), sendToServer);
+        File file = new File(pathname.toString());
+        if(!file.exists()){
+            sendToServer.println("stop");
+            return false;
+        }
+        if(file.isDirectory()){
+            // 传输文件夹：优化————多线程传输
+            sendToServer.println(file.getName());   // 新建文件夹
+            File[] files = file.listFiles();
+            File[] filesA;
+            File[] filesB;
+            assert files != null;
+            if(files.length % 2 == 0){
+                // 偶数
+                filesA = new File[files.length / 2];
+                filesB = new File[files.length / 2];
+                System.arraycopy(files, 0, filesA, 0, files.length / 2 - 1);
+                System.arraycopy(files, files.length / 2, filesA, 0, files.length / 2);
+            }else{
+                // 奇数
+                filesA = new File[files.length / 2];
+                filesB = new File[files.length / 2 + 1];
+                System.arraycopy(files, 0, filesA, 0, files.length / 2 - 1);
+                System.arraycopy(files, files.length / 2, filesA, 0, files.length / 2 + 1);
+            }
+            ClientFiles clientFilesA = new ClientFiles(filesA, dataConnection, sendToServer);
+            ClientFiles clientFilesB = new ClientFiles(filesB, dataConnection, sendToServer);
+            FutureTask<Boolean> fileResultA = new FutureTask<>(clientFilesA);
+            FutureTask<Boolean> fileResultB = new FutureTask<>(clientFilesB);
+            new Thread(fileResultA).start();
+            new Thread(fileResultB).start();
+            return fileResultA.get() && fileResultB.get();
+        }else{
+            // 传输单独文件
+            return dataConnection.uploadFile(file, sendToServer);
+        }
     }
 
     public boolean downloadFromServer(ClientDataConnection dataConnection, String synObject,Receive receive) throws IOException {

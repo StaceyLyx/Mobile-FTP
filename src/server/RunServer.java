@@ -12,10 +12,10 @@ import java.net.ServerSocket;
 public class RunServer {
 
     public static void main(String[] args){
-        Server server = new Server();   // 生成服务器
-        ServerSocket serverSocket = server.init();    // 生成服务器套接字
+        ServerInit server = new ServerInit();   // 生成服务器
+        server.init();
         try{
-            server.run(serverSocket);
+            server.run();
         }catch (Exception e){
             e.printStackTrace();
         }

@@ -4,7 +4,6 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
 /**
  * FTP客户端传输文件类
@@ -14,11 +13,13 @@ import java.net.UnknownHostException;
 
 public class ClientDataConnection{
 
+    // 数据传输设置相关
+    String ip;
     int port;
     boolean on;
+    String type = "";
     ServerSocket socket;       // 客户端数据传输端口
     Socket serverSocket;       // 链接服务器的端口
-    String type = "";
     BufferedInputStream is;   // 服务器输入流:binary
     BufferedOutputStream os;        // 服务器输出流:binary
     BufferedReader bufferedReader;   // 服务器输入流:ascii
@@ -38,6 +39,7 @@ public class ClientDataConnection{
 
     // 被动模式
     ClientDataConnection(String ip, int port) throws IOException {
+        this.ip = ip;
         this.port = port;
         this.on = true;
         this.serverSocket = new Socket(InetAddress.getByName(ip), port);
@@ -52,39 +54,31 @@ public class ClientDataConnection{
     }
 
     // 上传文件
-    public boolean upload(String pathname, PrintWriter sendToServer){
-        File file = new File(pathname);
-        if(!file.exists()){
-            sendToServer.println("stop");
-            return false;
-        }
-        if(file.isDirectory()){
-            sendToServer.println(file.getName());   // 新建文件夹
-            File[] files = file.listFiles();
-            assert files != null;
-            // 传输file文件夹中的所有文件
-            for (File temp : files) {
-                if(type.equalsIgnoreCase("ascii")) {
-                    if(!uploadAscii(temp.getPath(), sendToServer)){
-                        return false;
-                    }
-                }else{
-                    // 默认二进制传输
-                    if(!uploadBinary(temp.getPath(), sendToServer)){
-                        return false;
-                    }
-                }
-            }
-            sendToServer.println("over");
-        }else{
+    public boolean uploadDirectory(File[] files, PrintWriter sendToServer){
+        // 传输file文件夹中的所有文件
+        for (File temp : files) {
             if(type.equalsIgnoreCase("ascii")) {
-                return uploadAscii(file.getPath(), sendToServer);
+                if(!uploadAscii(temp.getPath(), sendToServer)){
+                    return false;
+                }
             }else{
                 // 默认二进制传输
-                return uploadBinary(file.getPath(), sendToServer);
+                if(!uploadBinary(temp.getPath(), sendToServer)){
+                    return false;
+                }
             }
         }
+        sendToServer.println("over");
         return true;
+    }
+
+    public boolean uploadFile(File file, PrintWriter sendToServer){
+        if(type.equalsIgnoreCase("ascii")) {
+            return uploadAscii(file.getPath(), sendToServer);
+        }else{
+            // 默认二进制传输
+            return uploadBinary(file.getPath(), sendToServer);
+        }
     }
 
     // ASCII传输
@@ -109,15 +103,8 @@ public class ClientDataConnection{
     // 二进制传输
     public boolean uploadBinary(String pathname, PrintWriter sendToServer){
         try{
-            BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
             sendToServer.println("ready");
             sendToServer.println(new File(pathname).getName());
-            int fileLength = 0;
-            while(lengthCheck.read() != -1){
-                ++fileLength;
-            }
-            sendToServer.println(fileLength);      // 获取文件大小上传至服务器
-            lengthCheck.close();
             BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
             int content;
             while ((content = fileIs.read()) != -1){
@@ -192,11 +179,11 @@ public class ClientDataConnection{
 
     // 二进制传输
     public void downloadBinary(String filepath, BufferedReader receiveFromServer) throws IOException{
-        int fileLength = Integer.parseInt(receiveFromServer.readLine());
         FileOutputStream fos = new FileOutputStream(filepath);
         BufferedOutputStream fileOs = new BufferedOutputStream(fos);
-        for(int i = 0; i < fileLength; ++i){
-            fileOs.write(is.read());   // 将文件下载到客户端
+        int length;
+        while((length = is.read()) != -1){
+            fileOs.write(length);   // 将文件下载到客户端
         }
         fileOs.flush();
         fos.close();
@@ -212,5 +199,4 @@ public class ClientDataConnection{
             this.serverSocket.close();
         }
     }
-
 }

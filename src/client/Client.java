@@ -3,8 +3,8 @@ package client;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.ExecutionException;
 
 /**
  * FTP客户端
@@ -104,7 +104,7 @@ public class Client {
             receiveThread.start();
             ConnectServer connectServer = new ConnectServer(sendToServer, receiveFromServer);
             ClientDataConnection dataConnection = null;
-//            ClientDataConnection dataConnectionB = null;   // 辅助数据传输
+            ClientDataConnection dataConnectionB = null;   // 辅助数据传输
             while(true){
                 instruction = keyboardIn.readLine();
                 if(instruction.startsWith("quit") || instruction.startsWith("QUIT")){
@@ -116,8 +116,8 @@ public class Client {
                     // 本机IP地址为：192.168.219.1
                     // port 192,168,219,1,(端口号1),(端口号2)
                     try{
-                        dataConnection = connectServer.port(instruction.split(" ")[1], false);
-//                        dataConnectionB = connectServer.port(instruction.split(" ")[1], true);
+                        dataConnection = connectServer.port(instruction.split(" ")[1]);
+                        dataConnectionB = new ClientDataConnection(dataConnection.port + 1);
                     }catch (ArrayIndexOutOfBoundsException e){
                         System.out.println("wrong format of \"port\" command");
                     }
@@ -126,6 +126,7 @@ public class Client {
                     sendToServer.println(instruction);
                     try{
                         dataConnection = connectServer.pasv(synObject, receive);
+                        dataConnectionB = new ClientDataConnection(dataConnection.ip, dataConnection.port + 1);
                     }catch (IOException e){
                         e.printStackTrace();
                         System.out.println("wrong switch to passive mode");
@@ -177,6 +178,7 @@ public class Client {
                             }else{
                                 Date time2 = new Date();
                                 dataConnection.close();   // 传输完毕，关闭数据链接
+                                dataConnectionB.close();
                                 System.out.println("Transmission time: " + (time2.getTime() - time1.getTime()) + " ms");
                             }
                         }catch (IndexOutOfBoundsException e){
@@ -194,7 +196,7 @@ public class Client {
                     if(dataConnection != null && dataConnection.on){
                         try{
                             Date time1 = new Date();
-                            boolean confirm = connectServer.uploadToServer(instruction, dataConnection);
+                            boolean confirm = connectServer.uploadToServer(instruction, dataConnection, dataConnectionB);
                             if(!confirm){
                                 System.out.println("upload failed, please try again.");
                             }else{
@@ -203,8 +205,11 @@ public class Client {
                                 System.out.println("Transmission time: " + (time2.getTime() - time1.getTime()) + " ms");
                             }
                         }catch (IndexOutOfBoundsException e){
+                            e.printStackTrace();
                             sendToServer.println("stop");
                             System.out.println("parameter missed");
+                        } catch (InterruptedException | ExecutionException e) {
+                            e.printStackTrace();
                         }
                     }else{
                         System.out.println("no data connection found");
