@@ -104,10 +104,9 @@ public class Server implements Runnable{
                     // 下载文件到客户端
                     if(dataConnection != null && dataConnection.on){
                         if(connectClient.downloadToClient(text, dataConnection, dataConnectionB)){
-                            String check = receiveFromClient.readLine();
-                            if(check.equals("continue")){
-                                sendToClient.println("command \"" + text + "\" is done.");
-                            }
+                            sendToClient.println("command \"" + text + "\" is done.");
+                        }else{
+                            System.out.println("download failed");
                         }
                     }else{
                         System.out.println("nonexistent data connection");
@@ -117,6 +116,8 @@ public class Server implements Runnable{
                     if(dataConnection != null && dataConnection.on){
                         if(connectClient.uploadFromClient(dataConnection, dataConnectionB)){
                             sendToClient.println("command \"" + text + "\" is done.");
+                        }else{
+                            System.out.println("upload failed");
                         }
                     }else{
                         System.out.println("nonexistent data connection");
