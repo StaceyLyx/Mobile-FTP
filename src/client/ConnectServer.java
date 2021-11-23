@@ -74,6 +74,7 @@ public class ConnectServer {
         }
         if(file.isDirectory()){
             // 传输文件夹：优化————多线程传输
+            sendToServer.println("directory");
             sendToServer.println(file.getName());   // 新建文件夹
             File[] files = file.listFiles();
             File[] filesA;
@@ -83,17 +84,17 @@ public class ConnectServer {
                 // 偶数
                 filesA = new File[files.length / 2];
                 filesB = new File[files.length / 2];
-                System.arraycopy(files, 0, filesA, 0, files.length / 2 - 1);
-                System.arraycopy(files, files.length / 2, filesA, 0, files.length / 2);
+                System.arraycopy(files, 0, filesA, 0, files.length / 2);
+                System.arraycopy(files, files.length / 2, filesB, 0, files.length / 2);
             }else{
                 // 奇数
                 filesA = new File[files.length / 2];
                 filesB = new File[files.length / 2 + 1];
-                System.arraycopy(files, 0, filesA, 0, files.length / 2 - 1);
-                System.arraycopy(files, files.length / 2, filesA, 0, files.length / 2 + 1);
+                System.arraycopy(files, 0, filesA, 0, files.length / 2);
+                System.arraycopy(files, files.length / 2, filesB, 0, files.length / 2 + 1);
             }
-            ClientFiles clientFilesA = new ClientFiles(filesA, dataConnection, sendToServer);
-            ClientFiles clientFilesB = new ClientFiles(filesB, dataConnection, sendToServer);
+            ClientFiles clientFilesA = new ClientFiles(filesA, dataConnection);
+            ClientFiles clientFilesB = new ClientFiles(filesB, dataConnectionB);
             FutureTask<Boolean> fileResultA = new FutureTask<>(clientFilesA);
             FutureTask<Boolean> fileResultB = new FutureTask<>(clientFilesB);
             new Thread(fileResultA).start();
@@ -101,20 +102,48 @@ public class ConnectServer {
             return fileResultA.get() && fileResultB.get();
         }else{
             // 传输单独文件
-            return dataConnection.uploadFile(file, sendToServer);
+            sendToServer.println("file");
+            return dataConnection.uploadFile(file);
         }
     }
 
-    public boolean downloadFromServer(ClientDataConnection dataConnection, String synObject,Receive receive) throws IOException {
-        boolean flag;
-        receive.stopNow(true);
-        synchronized (synObject){
-            flag = dataConnection.download(receiveFromServer);
-            synObject.notify();
-            receive.startNow(true);
+    public boolean downloadFromServer(ClientDataConnection dataConnection, ClientDataConnection dataConnectionB) throws IOException, ExecutionException, InterruptedException {
+        String path = "Client Files/Download/";
+        String info = receiveFromServer.readLine();
+        if(info.equals("file")){
+            // 传输特定文件
+            // 传输特定文件
+            String filename = receiveFromServer.readLine();
+            return dataConnection.downloadFile(path + filename);
+        }else if(info.equals("stop")){
+            // 异常停止
+            return false;
+        }else if(info.equals("directory")){
+            // 传输文件夹及内部文件
+            String direName = receiveFromServer.readLine();
+            File file = new File(path + direName);
+            if(!file.exists()){
+                file.isDirectory();
+                file.mkdir();
+            }
+            path += direName + "/";
+            ClientFiles clientFilesA = new ClientFiles(path, dataConnection);
+            ClientFiles clientFilesB = new ClientFiles(path, dataConnectionB);
+            FutureTask<Boolean> fileResultA = new FutureTask<>(clientFilesA);
+            FutureTask<Boolean> fileResultB = new FutureTask<>(clientFilesB);
+            new Thread(fileResultA).start();
+            new Thread(fileResultB).start();
+            if(fileResultA.get() && fileResultB.get()){
+                dataConnection.close();    // 关闭数据链接
+                dataConnectionB.close();
+                return true;
+            }else{
+                System.out.println("client error");
+                return false;
+            }
+        }else{
+            return false;
         }
-        sendToServer.println("continue");
-        return flag;
     }
 
     public void typeFromServer(String typeStr,ClientDataConnection dataConnection) throws FileNotFoundException {

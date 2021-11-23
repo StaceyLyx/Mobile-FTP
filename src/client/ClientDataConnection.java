@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 /**
  * FTP客户端传输文件类
@@ -20,10 +21,11 @@ public class ClientDataConnection{
     String type = "";
     ServerSocket socket;       // 客户端数据传输端口
     Socket serverSocket;       // 链接服务器的端口
-    BufferedInputStream is;   // 服务器输入流:binary
-    BufferedOutputStream os;        // 服务器输出流:binary
-    BufferedReader bufferedReader;   // 服务器输入流:ascii
-    PrintWriter printWriter;  // 服务器输出流:ascii
+
+    BufferedInputStream is = null;   // 服务器输入流:binary
+    BufferedOutputStream os = null;        // 服务器输出流:binary
+    BufferedReader bufferedReader = null;   // 服务器输入流:ascii
+    PrintWriter printWriter = null;  // 服务器输出流:ascii
 
     // 主动模式
     ClientDataConnection(int port) throws IOException {
@@ -31,10 +33,13 @@ public class ClientDataConnection{
         this.on = true;
         this.socket = new ServerSocket(port);
         this.serverSocket = socket.accept();    // 等待客户端来连接
-        this.is = new BufferedInputStream(serverSocket.getInputStream());
-        this.os = new BufferedOutputStream(serverSocket.getOutputStream());
-        this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
-        this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+        if(this.type.equalsIgnoreCase("ascii")){
+            this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
+            this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+        }else{
+            this.is = new BufferedInputStream(serverSocket.getInputStream());
+            this.os = new BufferedOutputStream(serverSocket.getOutputStream());
+        }
     }
 
     // 被动模式
@@ -43,10 +48,13 @@ public class ClientDataConnection{
         this.port = port;
         this.on = true;
         this.serverSocket = new Socket(InetAddress.getByName(ip), port);
-        this.is = new BufferedInputStream(serverSocket.getInputStream());
-        this.os = new BufferedOutputStream(serverSocket.getOutputStream());
-        this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
-        this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+        if (this.type.equalsIgnoreCase("ascii")) {
+            this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
+            this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+        }else{
+            this.is = new BufferedInputStream(serverSocket.getInputStream());
+            this.os = new BufferedOutputStream(serverSocket.getOutputStream());
+        }
     }
 
     public void setType(String type){
@@ -54,39 +62,40 @@ public class ClientDataConnection{
     }
 
     // 上传文件
-    public boolean uploadDirectory(File[] files, PrintWriter sendToServer){
+    public boolean uploadDirectory(File[] files){
         // 传输file文件夹中的所有文件
-        for (File temp : files) {
-            if(type.equalsIgnoreCase("ascii")) {
-                if(!uploadAscii(temp.getPath(), sendToServer)){
-                    return false;
-                }
-            }else{
-                // 默认二进制传输
-                if(!uploadBinary(temp.getPath(), sendToServer)){
-                    return false;
-                }
+        for (File file : files) {
+            if(!uploadFile(file)){
+                return false;
             }
         }
-        sendToServer.println("over");
-        return true;
+        try{
+            if(printWriter != null){
+                printWriter.println("over");
+            }else{
+                os.write("over".getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
+            return true;
+        }catch (IOException e){
+            return false;
+        }
     }
 
-    public boolean uploadFile(File file, PrintWriter sendToServer){
+    public boolean uploadFile(File file){
         if(type.equalsIgnoreCase("ascii")) {
-            return uploadAscii(file.getPath(), sendToServer);
+            return uploadAscii(file.getPath());
         }else{
             // 默认二进制传输
-            return uploadBinary(file.getPath(), sendToServer);
+            return uploadBinary(file.getPath());
         }
     }
 
     // ASCII传输
-    public boolean uploadAscii(String pathname, PrintWriter sendToServer){
+    public boolean uploadAscii(String pathname){
         try{
             File file = new File(pathname);
-            sendToServer.println("ready");
-            sendToServer.println(file.getName());
+            printWriter.println(file.getName());
             BufferedReader fileBufferedReader = new BufferedReader(new FileReader(file));
             String temp;
             while((temp = fileBufferedReader.readLine()) != null){
@@ -95,74 +104,92 @@ public class ClientDataConnection{
             fileBufferedReader.close();
             return true;
         }catch (IOException e){
-            sendToServer.println("stop");
+            printWriter.println("stop");
             return false;
         }
     }
 
     // 二进制传输
-    public boolean uploadBinary(String pathname, PrintWriter sendToServer){
+    public boolean uploadBinary(String pathname){
         try{
-            sendToServer.println("ready");
-            sendToServer.println(new File(pathname).getName());
-            BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
-            int content;
-            while ((content = fileIs.read()) != -1){
-                os.write(content);
-            }
+            // 传输文件名
+            os.write(new File(pathname).getName().getBytes(StandardCharsets.UTF_8));
             os.flush();
-            fileIs.close();
-            return true;
+            // 传输文件大小
+            byte[] bytes = new byte[1024];
+            int length = is.read(bytes);
+            String check = new String(bytes, 0, length);
+            if(check.equals("continue")){
+                BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
+                int fileLength = 0;
+                while (lengthCheck.read() != -1){
+                    ++fileLength;
+                }
+                os.write(Integer.toString(fileLength).getBytes(StandardCharsets.UTF_8));
+                os.flush();
+                lengthCheck.close();
+            }
+            // 传输文件内容
+            bytes = new byte[1024];
+            length = is.read(bytes);
+            check = new String(bytes, 0, length);
+            if(check.equals("continue")){
+                BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
+                int content;
+                while ((content = fileIs.read()) != -1){
+                    os.write(content);
+                }
+                os.flush();
+                fileIs.close();
+            }
+            bytes = new byte[1024];
+            length = is.read(bytes);
+            check = new String(bytes, 0, length);
+            return check.equals("finish");
         }catch (IOException e){
-            sendToServer.println("stop");
+            try{
+                os.write("stop".getBytes(StandardCharsets.UTF_8));
+            }catch (IOException e1){
+                return false;
+            }
             return false;
         }
     }
 
-    // 下载文件
-    public boolean download(BufferedReader receiveFromServer) throws IOException {
-        boolean judge;
-        String path = "Client Files/Download/";
-        String info = receiveFromServer.readLine();
-        if(info.equals("ready")){
-            // 传输特定文件
-            String filename = receiveFromServer.readLine();
-            if(type.equalsIgnoreCase("ascll")){
-                downloadAscii(path + filename);
-            }else{
-                // 默认二进制传输
-                downloadBinary(path + filename, receiveFromServer);
+    // 下载文件夹及内部文件
+    public boolean downloadDirectory(String path) throws IOException {
+        while(true) {
+            String info;
+            if (bufferedReader != null) {
+                info = bufferedReader.readLine();
+            } else {
+                byte[] contents = new byte[1024];
+                int length = is.read(contents);
+                info = new String(contents, 0, length);
             }
-            judge = true;
-        }else if(info.equals("stop")){
-            // 异常停止
-            judge = false;
-        }else{
-            // 传输文件夹及内部文件
-            File file = new File(path + info);
-            if(!file.exists()){
-                file.isDirectory();
-                file.mkdir();
+            if (info.equals("stop")) {
+                // 异常停止
+                return false;
+            } else if (info.equals("over")) {
+                // 传输结束
+                break;
+            } else {
+                // 传输内部文件
+                downloadFile(path + info);
             }
-            path += info + "/";
-            while(!(info = receiveFromServer.readLine()).equals("over")){
-                if(info.equals("ready")){
-                    // 传输特定文件
-                    String filename = receiveFromServer.readLine();
-                    if (type.equalsIgnoreCase("ascll")) {
-                        downloadAscii(path + filename);
-                    }else{
-                        // 默认二进制传输
-                        downloadBinary(path + filename, receiveFromServer);
-                    }
-                }else if(info.equals("stop")){
-                    // 异常停止
-                    return false;
-                }
-            }
-            judge = true;
         }
-        return judge;
+        return true;
+    }
+
+    // 下载特定文件
+    public boolean downloadFile(String filePath) throws IOException{
+        if(type.equalsIgnoreCase("ascii")){
+            downloadAscii(filePath);
+        }else{
+            // 默认二进制传输
+            downloadBinary(filePath);
+        }
+        return true;
     }
 
     // ASCII传输
@@ -178,15 +205,25 @@ public class ClientDataConnection{
     }
 
     // 二进制传输
-    public void downloadBinary(String filepath, BufferedReader receiveFromServer) throws IOException{
+    public void downloadBinary(String filepath) throws IOException{
+        // 接收文件大小
+        os.write("continue".getBytes(StandardCharsets.UTF_8));
+        os.flush();
+        byte[] contents = new byte[1024];
+        int length = is.read(contents);
+        int fileLength = Integer.parseInt(new String(contents, 0, length));
+        // 接收文件内容
+        os.write("continue".getBytes(StandardCharsets.UTF_8));
+        os.flush();
         FileOutputStream fos = new FileOutputStream(filepath);
         BufferedOutputStream fileOs = new BufferedOutputStream(fos);
-        int length;
-        while((length = is.read()) != -1){
-            fileOs.write(length);   // 将文件下载到客户端
+        for(int i = 0; i < fileLength; ++i){
+            fileOs.write(is.read());
         }
         fileOs.flush();
-        fos.close();
+        fileOs.close();
+        os.write("finish".getBytes(StandardCharsets.UTF_8));
+        os.flush();
     }
 
     public void close() throws IOException{

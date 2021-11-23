@@ -10,17 +10,19 @@ import java.net.Socket;
 
 public class Server implements Runnable{
 
+    int port;    // 控制传输端口
     String ftpPath;
     ServerSocket serverSocket;   // 服务器套接字
     Socket clientSocket;     // FTP客户端套接字
     BufferedReader receiveFromClient;    // 接受客户端的信息输入流
     PrintWriter sendToClient;     // 服务端发送给客户端的信息输出流
 
-    Server(String ftpPath) throws IOException {
-        this.serverSocket = new ServerSocket(6500);
+    Server(String ftpPath, int port) throws IOException {
+        this.port = port;
+        this.serverSocket = new ServerSocket(this.port);
+        System.out.println("The FTP is started successfully!");
         this.clientSocket = this.serverSocket.accept();
         this.ftpPath = ftpPath;
-        System.out.println("The FTP is started successfully!");
     }
 
     @Override
@@ -101,7 +103,7 @@ public class Server implements Runnable{
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
                     if(dataConnection != null && dataConnection.on){
-                        if(connectClient.downloadToClient(text, dataConnection)){
+                        if(connectClient.downloadToClient(text, dataConnection, dataConnectionB)){
                             String check = receiveFromClient.readLine();
                             if(check.equals("continue")){
                                 sendToClient.println("command \"" + text + "\" is done.");

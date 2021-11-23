@@ -1,23 +1,31 @@
 package server;
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
 public class ServerFiles implements Callable<Boolean> {
 
     String path;
+    File[] files;
     ServerDataConnection dataConnection;
-    BufferedReader receiveFromClient;
 
-    ServerFiles(String path, ServerDataConnection dataConnection, BufferedReader receiveFromClient){
+    ServerFiles(String path, ServerDataConnection dataConnection){
         this.path = path;
         this.dataConnection = dataConnection;
-        this.receiveFromClient = receiveFromClient;
+    }
+
+    ServerFiles(File[] files, ServerDataConnection dataConnection){
+        this.files = files;
+        this.dataConnection = dataConnection;
     }
 
     @Override
-    public Boolean call() throws IOException {
-        return dataConnection.uploadDirectory(path, receiveFromClient);
+    public Boolean call() throws IOException{
+        if(files.length == 0){
+            return dataConnection.uploadDirectory(path);
+        }else{
+            return dataConnection.downloadDirectory(files);
+        }
     }
 }

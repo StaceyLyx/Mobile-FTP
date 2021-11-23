@@ -1,5 +1,7 @@
 package server;
 
+import client.ClientFiles;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -59,25 +61,25 @@ public class ConnectClient {
     public boolean uploadFromClient(ServerDataConnection dataConnection, ServerDataConnection dataConnectionB){
         try{
             String info = receiveFromClient.readLine();
-            if(info.equals("ready")){
+            if(info.equals("file")){
                 // 传输特定文件
-                String filename = receiveFromClient.readLine();   // 获取文件名
-                dataConnection.uploadFile(filename, receiveFromClient);
+                dataConnection.uploadFile();
                 return true;
             }else if(info.equals("stop")){
                 // 异常停止
                 return false;
-            }else{
+            }else if(info.equals("directory")){
                 // 传输文件夹及内部文件
-                String path = ServerInit.ftpPath + "/Upload/" + info + "/";
+                String direName = receiveFromClient.readLine();
+                String path = ServerInit.ftpPath + "/Upload/" + direName + "/";
                 // 新建文件夹
-                File file = new File(ServerInit.ftpPath + "/Upload/" + info);
+                File file = new File(ServerInit.ftpPath + "/Upload/" + direName);
                 if (!file.exists()) {
                     file.isDirectory();
                     file.mkdir();
                 }
-                ServerFiles serverFilesA = new ServerFiles(path, dataConnection, receiveFromClient);
-                ServerFiles serverFilesB = new ServerFiles(path, dataConnectionB, receiveFromClient);
+                ServerFiles serverFilesA = new ServerFiles(path, dataConnection);
+                ServerFiles serverFilesB = new ServerFiles(path, dataConnectionB);
                 FutureTask<Boolean> fileResultA = new FutureTask<>(serverFilesA);
                 FutureTask<Boolean> fileResultB = new FutureTask<>(serverFilesB);
                 new Thread(fileResultA).start();
@@ -90,6 +92,8 @@ public class ConnectClient {
                     System.out.println("client error");
                     return false;
                 }
+            }else{
+                return false;
             }
         }catch (IndexOutOfBoundsException e){
             System.out.println("command needs parameter");
@@ -104,9 +108,8 @@ public class ConnectClient {
         }
     }
 
-    public boolean downloadToClient(String text, ServerDataConnection dataConnection){
+    public boolean downloadToClient(String text, ServerDataConnection dataConnection, ServerDataConnection dataConnectionB){
         try{
-            sendToClient.println("accept");
             StringBuilder pathname = new StringBuilder();    // 解析下载文件路径
             String[] str = text.split(" ");
             if(str.length == 1) throw new IndexOutOfBoundsException();
@@ -116,19 +119,49 @@ public class ConnectClient {
                     pathname.append(" ");
                 }
             }
-            if(dataConnection.download(pathname.toString(), sendToClient)){
-                dataConnection.close();    // 关闭数据链接
-                return true;
-            }else{
-                receiveFromClient.readLine();
-                System.out.println("errors occur");
+            File file = new File(pathname.toString());
+            if(!file.exists()){
+                sendToClient.println("stop");
                 return false;
+            }
+            if(file.isDirectory()){
+                // 传输文件夹：优化————多线程传输
+                sendToClient.println("directory");
+                sendToClient.println(file.getName());   // 新建文件夹
+                File[] files = file.listFiles();
+                File[] filesA;
+                File[] filesB;
+                assert files != null;
+                if(files.length % 2 == 0){
+                    // 偶数
+                    filesA = new File[files.length / 2];
+                    filesB = new File[files.length / 2];
+                    System.arraycopy(files, 0, filesA, 0, files.length / 2);
+                    System.arraycopy(files, files.length / 2, filesB, 0, files.length / 2);
+                }else{
+                    // 奇数
+                    filesA = new File[files.length / 2];
+                    filesB = new File[files.length / 2 + 1];
+                    System.arraycopy(files, 0, filesA, 0, files.length / 2);
+                    System.arraycopy(files, files.length / 2, filesB, 0, files.length / 2 + 1);
+                }
+                ServerFiles serverFilesA = new ServerFiles(filesA, dataConnection);
+                ServerFiles serverFilesB = new ServerFiles(filesB, dataConnectionB);
+                FutureTask<Boolean> fileResultA = new FutureTask<>(serverFilesA);
+                FutureTask<Boolean> fileResultB = new FutureTask<>(serverFilesB);
+                new Thread(fileResultA).start();
+                new Thread(fileResultB).start();
+                return fileResultA.get() && fileResultB.get();
+            }else{
+                // 传输单独文件
+                sendToClient.println("file");
+                return dataConnection.downloadFile(file);
             }
         }catch (IndexOutOfBoundsException e){
             System.out.println("command needs parameter");
             return false;
-        }catch (IOException e){
-            System.out.println("errors occur");
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
             return false;
         }
     }

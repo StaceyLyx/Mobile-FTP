@@ -172,7 +172,7 @@ public class Client {
                     if(dataConnection != null && dataConnection.on){
                         try{
                             Date time1 = new Date();
-                            boolean confirm = connectServer.downloadFromServer(dataConnection, synObject, receive);
+                            boolean confirm = connectServer.downloadFromServer(dataConnection, dataConnectionB);
                             if(!confirm){
                                 System.out.println("download failed, please try again");
                             }else{
@@ -185,6 +185,8 @@ public class Client {
                             System.out.println("parameter missed");
                         }catch (IOException e){
                             System.out.println("download failed, please try again");
+                        } catch (InterruptedException | ExecutionException e) {
+                            e.printStackTrace();
                         }
                     }else{
                         System.out.println("no data connection found");

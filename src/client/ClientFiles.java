@@ -1,7 +1,7 @@
 package client;
 
 import java.io.File;
-import java.io.PrintWriter;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /**
@@ -10,18 +10,26 @@ import java.util.concurrent.Callable;
 
 public class ClientFiles implements Callable<Boolean> {
 
+    String path;
     File[] files;          // 传输任务
     ClientDataConnection dataConnection;
-    PrintWriter sendToServer;
 
-    ClientFiles(File[] files, ClientDataConnection dataConnection, PrintWriter sendToServer){
+    ClientFiles(File[] files, ClientDataConnection dataConnection){
         this.files = files;
         this.dataConnection = dataConnection;
-        this.sendToServer = sendToServer;
+    }
+
+    ClientFiles(String path, ClientDataConnection dataConnection){
+        this.path = path;
+        this.dataConnection = dataConnection;
     }
 
     @Override
-    public Boolean call() {
-        return dataConnection.uploadDirectory(files, sendToServer);
+    public Boolean call() throws IOException {
+        if(files.length == 0){
+            return dataConnection.downloadDirectory(path);
+        }else{
+            return dataConnection.uploadDirectory(files);
+        }
     }
 }
