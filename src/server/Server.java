@@ -10,19 +10,32 @@ import java.net.Socket;
 
 public class Server implements Runnable{
 
-    int port;    // 控制传输端口
+    ServerSocket serverSocket;
+    Socket clientSocket;
     String ftpPath;
-    ServerSocket serverSocket;   // 服务器套接字
-    Socket clientSocket;     // FTP客户端套接字
     BufferedReader receiveFromClient;    // 接受客户端的信息输入流
     PrintWriter sendToClient;     // 服务端发送给客户端的信息输出流
 
-    Server(String ftpPath, int port) throws IOException {
-        this.port = port;
-        this.serverSocket = new ServerSocket(this.port);
-        System.out.println("The FTP is started successfully!");
-        this.clientSocket = this.serverSocket.accept();
-        this.ftpPath = ftpPath;
+    // 初始化FTP服务器
+    public void init() {      // 服务器创建通信ServerSocket，创建Socket接收客户端信息
+        this.ftpPath = ServerInit.ftpPath;
+        int port = 6500;
+        try {
+            this.serverSocket = new ServerSocket(port);   // 服务器绑定于port端口上
+            System.out.println("The FTP is started successfully!");
+            File uploadDirectory = new File(ftpPath + "/Upload");
+            if (!uploadDirectory.exists()) {
+                uploadDirectory.isDirectory();
+                uploadDirectory.mkdir();
+            }
+            File downloadDirectory = new File(ftpPath + "/Download");
+            if (!downloadDirectory.exists()) {
+                downloadDirectory.isDirectory();
+                downloadDirectory.mkdir();
+            }
+        } catch (IOException e) {
+            System.out.println("port " + port + " has been used");
+        }
     }
 
     @Override
