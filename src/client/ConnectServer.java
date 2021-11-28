@@ -43,9 +43,11 @@ public class ConnectServer {
         receive.stopNow(true);
         String ip;
         String portStr;
+        // 关闭Receive中的接收服务器反馈信息的同步线程，以接收服务器提供的IP地址与端口号
         synchronized (synObject){
             ip = receiveFromServer.readLine();
             portStr = receiveFromServer.readLine();
+            // 打开Receive中的接收服务器反馈信息的同步线程
             synObject.notify();
             receive.startNow(true);
         }
@@ -107,46 +109,55 @@ public class ConnectServer {
         }
     }
 
-    public boolean downloadFromServer(ClientDataConnection dataConnection, ClientDataConnection dataConnectionB) throws IOException, ExecutionException, InterruptedException {
-        String path = "Client Files/Download/";
-        String info = receiveFromServer.readLine();
-        if(info.equals("file")){
+    public boolean downloadFromServer(ClientDataConnection dataConnection, ClientDataConnection dataConnectionB, String synObject, Receive receive) throws IOException, ExecutionException, InterruptedException {
+        synchronized (synObject){
+            String path = "./Client Files/Download/";
+            String info = receiveFromServer.readLine();
             // 传输特定文件
-            // 传输特定文件
-            String filename = receiveFromServer.readLine();
-            return dataConnection.downloadFile(path + filename);
-        }else if(info.equals("stop")){
-            // 异常停止
-            return false;
-        }else if(info.equals("directory")){
             // 传输文件夹及内部文件
-            String direName = receiveFromServer.readLine();
-            File file = new File(path + direName);
-            if(!file.exists()){
-                file.isDirectory();
-                file.mkdir();
+            switch (info) {
+                case "file" -> {
+                    synObject.notify();
+                    receive.startNow(true);
+                    return dataConnection.downloadFile(path);// 异常停止
+                }
+                case "directory" -> {
+                    String direName = receiveFromServer.readLine();
+                    File file = new File(path + direName);
+                    if (!file.exists()) {
+                        file.isDirectory();
+                        file.mkdir();
+                    }
+                    path += direName + "/";
+                    ClientFiles clientFilesA = new ClientFiles(path, dataConnection);
+                    ClientFiles clientFilesB = new ClientFiles(path, dataConnectionB);
+                    FutureTask<Boolean> fileResultA = new FutureTask<>(clientFilesA);
+                    FutureTask<Boolean> fileResultB = new FutureTask<>(clientFilesB);
+                    new Thread(fileResultA).start();
+                    new Thread(fileResultB).start();
+                    if (fileResultA.get() && fileResultB.get()) {
+                        dataConnection.close();    // 关闭数据链接
+                        dataConnectionB.close();
+                        synObject.notify();
+                        receive.startNow(true);
+                        return true;
+                    } else {
+                        System.out.println("client error");
+                        synObject.notify();
+                        receive.startNow(true);
+                        return false;
+                    }
+                }
+                default -> {              // stop
+                    synObject.notify();
+                    receive.startNow(true);
+                    return false;
+                }
             }
-            path += direName + "/";
-            ClientFiles clientFilesA = new ClientFiles(path, dataConnection);
-            ClientFiles clientFilesB = new ClientFiles(path, dataConnectionB);
-            FutureTask<Boolean> fileResultA = new FutureTask<>(clientFilesA);
-            FutureTask<Boolean> fileResultB = new FutureTask<>(clientFilesB);
-            new Thread(fileResultA).start();
-            new Thread(fileResultB).start();
-            if(fileResultA.get() && fileResultB.get()){
-                dataConnection.close();    // 关闭数据链接
-                dataConnectionB.close();
-                return true;
-            }else{
-                System.out.println("client error");
-                return false;
-            }
-        }else{
-            return false;
         }
     }
 
-    public void typeFromServer(String typeStr,ClientDataConnection dataConnection) throws FileNotFoundException {
+    public void typeFromServer(String typeStr,ClientDataConnection dataConnection) throws IOException {
         dataConnection.setType(typeStr);
     }
 }

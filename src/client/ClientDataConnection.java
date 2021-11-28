@@ -57,8 +57,15 @@ public class ClientDataConnection{
         }
     }
 
-    public void setType(String type){
+    public void setType(String type) throws IOException {
         this.type = type;
+        if (this.type.equalsIgnoreCase("ascii")) {
+            this.bufferedReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
+            this.printWriter = new PrintWriter(serverSocket.getOutputStream(), true);
+        }else{
+            this.is = new BufferedInputStream(serverSocket.getInputStream());
+            this.os = new BufferedOutputStream(serverSocket.getOutputStream());
+        }
     }
 
     // 上传文件
@@ -183,11 +190,18 @@ public class ClientDataConnection{
 
     // 下载特定文件
     public boolean downloadFile(String filePath) throws IOException{
-        if(type.equalsIgnoreCase("ascii")){
-            downloadAscii(filePath);
+        if (type.equalsIgnoreCase("ascii")){
+            String filename = bufferedReader.readLine();
+            System.out.println("ready to upload \"" + filename + "\" ......");
+            downloadAscii(filePath + filename);
         }else{
             // 默认二进制传输
-            downloadBinary(filePath);
+            System.out.println("ready to download file");
+            byte[] bytes = new byte[1024];
+            int length = is.read(bytes);
+            String filename = new String(bytes, 0, length);
+            System.out.println("ready to download \"" + filename + "\" ......");
+            downloadBinary(filePath + filename);
         }
         return true;
     }

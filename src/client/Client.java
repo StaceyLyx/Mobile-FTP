@@ -172,7 +172,7 @@ public class Client {
                     if(dataConnection != null && dataConnection.on){
                         try{
                             Date time1 = new Date();
-                            boolean confirm = connectServer.downloadFromServer(dataConnection, dataConnectionB);
+                            boolean confirm = connectServer.downloadFromServer(dataConnection, dataConnectionB, synObject, receive);
                             if(!confirm){
                                 System.out.println("download failed, please try again");
                             }else{

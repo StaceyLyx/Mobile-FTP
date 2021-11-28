@@ -100,7 +100,11 @@ public class Server implements Runnable{
                 }else if(text.startsWith("type") || text.startsWith("TYPE")){
                     if(dataConnection!=null){
                         String type = receiveFromClient.readLine();
-                        dataConnection.setType(type);
+                        try{
+                            dataConnection.setType(type);
+                        }catch (IOException e){
+                            e.printStackTrace();
+                        }
                         sendToClient.println("current data transmission type: " + type);
                         System.out.println("get type successfully!");
                         System.out.println("current type: " + type);
@@ -116,6 +120,7 @@ public class Server implements Runnable{
                 }else if(text.startsWith("retr") || text.startsWith("RETR")){
                     // 下载文件到客户端
                     if(dataConnection != null && dataConnection.on){
+                        sendToClient.println("accept");
                         if(connectClient.downloadToClient(text, dataConnection, dataConnectionB)){
                             sendToClient.println("command \"" + text + "\" is done.");
                         }else{

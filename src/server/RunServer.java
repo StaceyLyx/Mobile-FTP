@@ -1,8 +1,5 @@
 package server;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-
 /**
  * 运行FTP服务器主程序
  */

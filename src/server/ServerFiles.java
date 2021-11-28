@@ -4,6 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
+/**
+ * FTP数据传输时用于多线程优化
+ */
+
 public class ServerFiles implements Callable<Boolean> {
 
     String path;

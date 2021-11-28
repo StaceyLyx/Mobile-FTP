@@ -1,7 +1,5 @@
 package server;
 
-import client.ClientFiles;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -34,20 +32,13 @@ public class ConnectClient {
     public ServerDataConnection port() throws IOException {
         String IP = receiveFromClient.readLine();
         int port = Integer.parseInt(receiveFromClient.readLine());
-        ServerDataConnection dataConnection = new ServerDataConnection(IP, port);
-        return dataConnection;
+        return new ServerDataConnection(IP, port);
     }
 
     public ServerDataConnection pasv(ServerDataConnection dataConnection) throws IOException {
         sendToClient.println("accept");
         // 服务器IP地址
-        String localhostAddress = "";
-        try{
-            localhostAddress = String.valueOf(InetAddress.getLocalHost());
-        }catch (UnknownHostException e){
-            e.printStackTrace();
-        }
-        sendToClient.println(localhostAddress.split("/")[1]);
+        sendToClient.println("10.223.137.72");
         // 服务器端口
         int port = (int)(3000 + Math.random() * (50000 - 3000 + 1));
         sendToClient.println(port);
@@ -61,39 +52,40 @@ public class ConnectClient {
     public boolean uploadFromClient(ServerDataConnection dataConnection, ServerDataConnection dataConnectionB){
         try{
             String info = receiveFromClient.readLine();
-            if(info.equals("file")){
-                // 传输特定文件
-                dataConnection.uploadFile();
-                return true;
-            }else if(info.equals("stop")){
-                // 异常停止
-                return false;
-            }else if(info.equals("directory")){
-                // 传输文件夹及内部文件
-                String direName = receiveFromClient.readLine();
-                String path = ServerInit.ftpPath + "/Upload/" + direName + "/";
-                // 新建文件夹
-                File file = new File(ServerInit.ftpPath + "/Upload/" + direName);
-                if (!file.exists()) {
-                    file.isDirectory();
-                    file.mkdir();
-                }
-                ServerFiles serverFilesA = new ServerFiles(path, dataConnection);
-                ServerFiles serverFilesB = new ServerFiles(path, dataConnectionB);
-                FutureTask<Boolean> fileResultA = new FutureTask<>(serverFilesA);
-                FutureTask<Boolean> fileResultB = new FutureTask<>(serverFilesB);
-                new Thread(fileResultA).start();
-                new Thread(fileResultB).start();
-                if(fileResultA.get() && fileResultB.get()){
-                    dataConnection.close();    // 关闭数据链接
-                    dataConnectionB.close();
+            switch (info) {
+                case "file":
+                    // 传输特定文件
+                    dataConnection.uploadFile();
                     return true;
-                }else{
-                    System.out.println("client error");
+                case "stop":
+                    // 异常停止
                     return false;
-                }
-            }else{
-                return false;
+                case "directory":
+                    // 传输文件夹及内部文件
+                    String direName = receiveFromClient.readLine();
+                    String path = ServerInit.ftpPath + "/Upload/" + direName + "/";
+                    // 新建文件夹
+                    File file = new File(ServerInit.ftpPath + "/Upload/" + direName);
+                    if (!file.exists()) {
+                        file.isDirectory();
+                        file.mkdir();
+                    }
+                    ServerFiles serverFilesA = new ServerFiles(path, dataConnection);
+                    ServerFiles serverFilesB = new ServerFiles(path, dataConnectionB);
+                    FutureTask<Boolean> fileResultA = new FutureTask<>(serverFilesA);
+                    FutureTask<Boolean> fileResultB = new FutureTask<>(serverFilesB);
+                    new Thread(fileResultA).start();
+                    new Thread(fileResultB).start();
+                    if (fileResultA.get() && fileResultB.get()) {
+                        dataConnection.close();    // 关闭数据链接
+                        dataConnectionB.close();
+                        return true;
+                    } else {
+                        System.out.println("client error");
+                        return false;
+                    }
+                default:
+                    return false;
             }
         }catch (IndexOutOfBoundsException e){
             System.out.println("command needs parameter");

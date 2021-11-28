@@ -5,8 +5,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Date;
 
 /**
  * FTP传输文件服务器部分
@@ -55,8 +53,15 @@ public class ServerDataConnection{
         }
     }
 
-    public void setType(String type){
+    public void setType(String type) throws IOException {
         this.type = type;
+        if(this.type.equalsIgnoreCase("ascii")){
+            this.printWriter = new PrintWriter(socket.getOutputStream(), true);
+            this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        }else{
+            this.is = new BufferedInputStream(socket.getInputStream());
+            this.os = new BufferedOutputStream(socket.getOutputStream());
+        }
     }
 
     // 上传文件夹
@@ -197,22 +202,50 @@ public class ServerDataConnection{
     // 二进制下载
     public boolean downloadBinary(String pathname){
         try{
-            printWriter.println("ready");
+            // 传输文件名
+            os.write(new File(pathname).getName().getBytes(StandardCharsets.UTF_8));
+            os.flush();
+            // 传输文件大小
+            byte[] bytes = new byte[1024];
+            int length = is.read(bytes);
+            String check = new String(bytes, 0, length);
+            if(check.equals("continue")){
+                BufferedInputStream lengthCheck = new BufferedInputStream(new FileInputStream(pathname));
+                int fileLength = 0;
+                while (lengthCheck.read() != -1){
+                    ++fileLength;
+                }
+                os.write(Integer.toString(fileLength).getBytes(StandardCharsets.UTF_8));
+                os.flush();
+                lengthCheck.close();
+            }
             File file = new File(pathname);
             System.out.println("ready to download \"" + file.getName() + "\" ......");
-            printWriter.println(file.getName());
-            int content;
-            BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
-            while ((content = fileIs.read()) != -1){
-                os.write(content);
+            bytes = new byte[1024];
+            length = is.read(bytes);
+            check = new String(bytes, 0, length);
+            if(check.equals("continue")){
+                BufferedInputStream fileIs = new BufferedInputStream(new FileInputStream(pathname));
+                int content;
+                while ((content = fileIs.read()) != -1){
+                    os.write(content);
+                }
+                os.flush();
+                fileIs.close();
             }
-            os.flush();
             System.out.println("one file has downloaded");
-            fileIs.close();
-            return true;
+            bytes = new byte[1024];
+            length = is.read(bytes);
+            check = new String(bytes, 0, length);
+            return check.equals("finish");
         }catch (IOException e){
             e.printStackTrace();
-            printWriter.println("stop");
+            try {
+                os.write("stop".getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
             return false;
         }
     }

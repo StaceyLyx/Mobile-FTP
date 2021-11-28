@@ -2,8 +2,6 @@ package server;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 
 /**
  * FTP服务器
@@ -28,17 +26,14 @@ public class ServerInit {
         }
     }
 
-    // 运行FTP服务器
+    // 运行FTP服务器进行客户端监听
     public void run(Server server){
-        while(true){
-            // 等待接收多个客户端链接
-            try{
-                server.clientSocket = server.serverSocket.accept();
-                Thread thread = new Thread(server);
-                thread.start();
-            }catch (IOException e){
-                e.printStackTrace();
-            }
+        try{
+            server.clientSocket = server.serverSocket.accept();
+            Thread thread = new Thread(server);
+            thread.start();
+        }catch (IOException e){
+            e.printStackTrace();
         }
     }
 }
